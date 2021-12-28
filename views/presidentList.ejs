@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+        Who is running for president:
+        <% for (var i = 0, cnt = 0; i < userInfo.length; ++i) { %>
+            <% if (userInfo[i].president == "YES") { %>
+                <ul>
+                    <%= ++cnt %>. <%= userInfo[i].user %>
+                    <br>
+                    votes: <%= userInfo[i].votes %>
+                    <form action="/users/vote/<%= userInfo[i].id %>" method="POST">
+                        <input type="submit" value="Vote">
+                    </form>
+                </ul>
+            <% } %>
+        <% } %>
+    </body>
+</html>
