@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head> <!-- ???!!! -->
+    <body> <!--Pot sa trimit asta:? /users/presidentialCandidates/<%= registeredUserInfo %>-->
+        info: <%= registeredUserInfo %>
+        <form action="/users/presidentialCandidates/<%= registeredUserInfo.name %>" method="GET">
+            <input type="submit" value="Presidential candidates">
+        </form>
+        <br><br>
+        <% if (registeredUserInfo.runForPresident != "YES") { %>
+            <form action="/users/runForPresident/<%= registeredUserInfo.name %>" method="POST">
+                <input type="submit" value="Run for president">
+            </form>
+        <% } else { %>
+            You are already in the presidential list.
+        <% } %>
+        <br><br>
+        <%= registeredUserInfo.name %>'s vote history:
+        <br>
+        ...?
+    </body>
+</html>

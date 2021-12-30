@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+    <head>
+    </head>
+    <body>
+        The user with the name '<%= loggedInUserName %>' is looking through the presidential list.
+        <br>
+        <% for (var i = 0, cnt = 0; i < allUsersInfo.length; ++i) { %>
+            <% if (allUsersInfo[i].runForPresident == "YES") { %>
+                <ul>
+                    <%= ++cnt %>. <%= allUsersInfo[i].name %>
+                    <br>
+                    <% if (allUsersInfo[i].votes <= 0) { %> 
+                        votes: 0
+                    <% } else { %>
+                         votes: <%= allUsersInfo[i].votes %>
+                     <% } %>
+                    <form action="/users/vote/<%= allUsersInfo[i].name %>/<%= loggedInUserName %>" method="POST">
+                        <input type="submit" value="Vote">
+                    </form>
+                </ul>
+            <% } %>
+        <% } %>
+    </body>
+</html>
