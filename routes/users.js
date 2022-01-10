@@ -1,7 +1,8 @@
-const { response } = require('express');
 var express = require('express');
 var router = express.Router();
 const mysql = require('mysql');
+
+var keyWord_popUpMessage = "home page";
 
 //Connect to MySQL Connections
 const connection = mysql.createConnection({
@@ -27,14 +28,37 @@ connection.query('CREATE TABLE IF NOT EXISTS users(' +
   'name VARCHAR(255) UNIQUE NOT NULL,' +
   'email VARCHAR(255) UNIQUE NOT NULL,' +
   'password VARCHAR(255) NOT NULL,' +
-  'runForPresident VARCHAR(255),' +
-  'votes INT(255),' +
-  'lastTimeYouVoted DATETIME' +
+  'runForPresident VARCHAR(255)' +
   ')', (err) => {
   if (err) {
     throw err;
   } else {
-    console.log("table created in the database");
+    console.log("table 'users' created in the database");
+  }
+});
+
+//Create the table in the database for the vote history of some user
+connection.query('CREATE TABLE IF NOT EXISTS vote_history(' + 
+  'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
+  'whoVoted VARCHAR(255),' +
+  'whoWasVoted VARCHAR(255),' +
+  'dateOfVote DATETIME' +
+  ')', (err) => {
+  if (err) {
+    throw err;
+  } else {
+    console.log("table 'vote_history' created in the database");
+  }
+});
+
+//Pop-up messages
+router.get('/popUpMessage', (req, res) => {
+  console.log("\n se intra in /popUpMessage \n");
+
+  if (keyWord_popUpMessage == "home page") {
+    res.render('index', { popUpMessage: req.flash('message')});
+  } else {
+    res.render('presidentList', {popUpMessage: req.flash('message')});
   }
 });
 
@@ -47,19 +71,11 @@ router.post('/createAccount', function(req, res) {
   connection.query("INSERT INTO users(name, email, password)" +
     "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
     if (err) {
-      // ???!!!???
-      //sa ii spun cumva ca name SI/SAU email deja exista in baza de date
-      res.redirect('/error');
-
-      // ???!!!???
-      //throw err; //asta a trebuit sa o pun in comentariu, ca altfel trebuie sa dau restart la server cand se arunca eroarea, ii ok?
+      req.flash('message', 'The name or the email is already taken, please change it.');
+      res.redirect('popUpMessage');
     } else {
-      // ???!!!???
-      //sa fac cumva sa stie ca i s-a creat contul cu succes
-
-      //res.sendStatus(201);
-      //res.send("Account successfully created.");
-      res.redirect('/');
+      req.flash('message', 'Account successfully created.');
+      res.redirect('popUpMessage');
     }
   });
 });
@@ -71,19 +87,11 @@ router.post('/login', function (req, res) {
 
   connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows) {
     if (err) {
-      // ???!!!
-      // in ce caz mi se intra in acest if? pt. ca daca exista sau nu exista contul, nu se intra in if aici...
       throw err;
     } else {
-      // ???!!!
-      // cand se baga un cont care nu exista, tot aici se intra, adica in else, nu in if, de ce...?
-
-      console.log(rows);
-      console.log(rows[0]);
-
       if (rows[0] == undefined) {
-        console.log("SE INTRA IN IF-UL CU UNDEFINED PT CA ACEST CONT NU EXISTA");
-        res.redirect('/error');
+        req.flash('message', 'This account does not exist.');
+        res.redirect('popUpMessage');
       } else {
         res.render('userAccount', {registeredUserInfo: rows[0]});
       }
@@ -92,33 +100,47 @@ router.post('/login', function (req, res) {
 });
 
 //Presidential candidates
-router.get('/presidentialCandidates/:userName', function (req, res) { ///presidentialCandidates/:name/:lastTimeYouVoted
-  //???!!!: pot aici sa trimit /:userInfo in loc sa trimit /:name?
+router.get('/presidentialCandidates/:userName', function (req, res) {
   let loggedInUserName = req.params.userName;
-  console.log(loggedInUserName);
+  console.log("loggedInUserName");
 
-  connection.query("SELECT * FROM users", function(err, result) {
+  connection.query(`SELECT name FROM users WHERE runForPresident = "YES"`, function(err, rows) {
     if (err) {
       throw err;
     } else {
-      res.render('presidentList', {allUsersInfo: result, loggedInUserName: loggedInUserName});
+      let usersNameWhoRunForPresident = [];
+      for (let i = 0; i < rows.length; ++i) {
+        usersNameWhoRunForPresident[i] = rows[i].name;
+      }
+      console.log("usersNameWhoRunForPresident");
+      console.log(usersNameWhoRunForPresident);
+
+      connection.query(`SELECT whoWasVoted, COUNT(*) as votes FROM vote_history GROUP BY whoWasVoted`, function (err, result) {
+        if (err) {
+          throw err;
+        } else {
+          let usersNameWithVotes = [];
+          for (let i = 0; i < result.length; ++i) {
+            usersNameWithVotes[i] = result[i];
+          }
+          console.log("usersNameWithVotes");
+          console.log(usersNameWithVotes);
+          
+          res.render('presidentList', {loggedInUserName: loggedInUserName, usersNameWhoRunForPresident: usersNameWhoRunForPresident, usersNameWithVotes : usersNameWithVotes, popUpMessage: " "});
+        }
+      });
     }
   });
 });
 
 //Run for president
 router.post("/runForPresident/:name", function (req, res) {
-
-  console.log("\n se intra in /runForPresident");
   let userName = req.params.name;
-
-  console.log("userName= " + userName + "\n");
 
   connection.query(`UPDATE users SET runForPresident = "YES" WHERE name = '${userName}'`, (err) => {
     if (err) {
       throw err;
     } else {
-      console.log("You are now running for president.");
       res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
     }
   });
@@ -129,99 +151,71 @@ router.post("/vote/:name1/:name2", function (req, res) {
   console.log("\n se intra in /vote");
 
   let userNameWhoGotVoted = req.params.name1;
-  console.log("userNameWhoGotVoted= " + userNameWhoGotVoted);
-
   let userNameWhoVoted = req.params.name2;
+
+  console.log("userNameWhoWasVoted= " + userNameWhoGotVoted);
   console.log("userNameWhoVoted= " + userNameWhoVoted);
 
-  connection.query(`SELECT lastTimeYouVoted FROM users WHERE name = '${userNameWhoVoted}'`, function(err, rows) {
-    
-    //!!! de ce NU se extrage sub forma in care ii salvat in baza de date?
-    console.log("ultima data cand a votat IN BAZA DE DATE= ");
-    console.log(rows[0].lastTimeYouVoted);
+  if (userNameWhoGotVoted == userNameWhoVoted) {
+    req.flash('message', 'You can not vote yourself.');
+    res.redirect('../../popUpMessage');
+  } else {
+    connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows, result) {
+      if (err) {
+        throw err;
+      } else {
+        let presentDate = new Date(new Date() + "UTC");
+        let userNameWhoVoted_LastTimeHeVoted;
+        let userNameWhoVoted_LastTimeHeVoted_AfterADay;
 
-    //!!! si aici cand salvez campul din baza de date in variabila din cod, se afiseaza sub alta forma
-    let userNameWhoVoted_LastTimeHeVoted = rows[0].lastTimeYouVoted;
-    console.log("ultima data cand a votat IN VARIABILA= " + userNameWhoVoted_LastTimeHeVoted)
-
-    let dateAfterADay = new Date(new Date() + "UTC");
-    dateAfterADay.setDate(dateAfterADay.getDate() + 1);
-    let dateAfterADayFormatted = dateAfterADay.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-    console.log("dateAfterADayFormatted= " + dateAfterADayFormatted);
-
-    if (userNameWhoVoted_LastTimeHeVoted == undefined || dateAfterADayFormatted < userNameWhoVoted_LastTimeHeVoted) {
-      console.log("EL POATE VOTA PT. CA ULTIMA DATA CAND A VOTAT II UNDEFINED");
-      connection.query(`UPDATE users SET lastTimeYouVoted = CURRENT_TIMESTAMP WHERE name = '${userNameWhoVoted}'`, (err) => {
-        if (err) {
-          console.log("se intra in if (err) ca nu se poate vota din cauza ultimei dati in care a votat")
-          throw err;
+        if (rows[0] == undefined) { //when the user who wants to vote, never voted once before
+          userNameWhoVoted_LastTimeHeVoted = "never";
         } else {
-          console.log("S-A UPDATAT DATA LA CARE A VOTAT.");
+          userNameWhoVoted_LastTimeHeVoted = rows[0].dateOfVote;
+          userNameWhoVoted_LastTimeHeVoted_AfterADay = userNameWhoVoted_LastTimeHeVoted;
+          userNameWhoVoted_LastTimeHeVoted_AfterADay.setDate(userNameWhoVoted_LastTimeHeVoted_AfterADay.getDate() + 1)
+          console.log("userNameWhoVoted_LastTimeHeVoted_AfterADay:");
+          console.log(userNameWhoVoted_LastTimeHeVoted_AfterADay);
+          console.log("presentDate:");
+          console.log(presentDate);
+        }
 
-          connection.query(`SELECT votes FROM users WHERE name = '${userNameWhoGotVoted}'`, function(err, rows) {
+        if (userNameWhoVoted_LastTimeHeVoted == "never" || userNameWhoVoted_LastTimeHeVoted_AfterADay < presentDate) {
+          connection.query("INSERT INTO vote_history(whoVoted, whoWasVoted, dateOfVote)" +
+            "VALUES ('"+  userNameWhoVoted +"', '"+ userNameWhoGotVoted +"', CURRENT_TIMESTAMP)", (err) => {
             if (err) {
-              console.log("se intra in if (err) ca nu se poate selecta cel care a primit votul")
               throw err;
             } else {
-              let userNameWhoGotVoted_Votes = rows[0].votes;
-              if (userNameWhoGotVoted_Votes == undefined) {
-                console.log("se intra in if ca voturi = undefined");
-                userNameWhoGotVoted_Votes = 0;
-              }
-              console.log("cate voturi are cel care ii votat= " + userNameWhoGotVoted_Votes);
-              connection.query(`UPDATE users SET votes = ${++userNameWhoGotVoted_Votes} WHERE name = '${userNameWhoGotVoted}'`, (err) => {
-                if (err) {
-                  console.log("NU S-AU UPDATAT VOTURILE CU SUCCES");
-                  throw err;
-                } else {
-                  console.log("S-AU UPDATAT VOTURILE CU SUCCES");
-                  res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
-                }
-              });
+              res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
             }
           });
+        } else {
+          keyWord_popUpMessage = "presidential candidates";
+          req.flash('message', 'You can only vote once per day.');
+          res.redirect('../../popUpMessage');
         }
-      });
-    } else {
-      console.log("You can only vote once a day.")
-      res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
-    }
-  });
+      }
+    });
+  }
+});
 
-  /*connection.query("SELECT * FROM users", function(err, rows) {
+//Vote History
+router.get('/voteHistory/:registeredUserName', function (req, res) {
+  let userNameWhoVoted = req.params.registeredUserName;
+
+  connection.query(`SELECT * FROM vote_history WHERE whoVoted = '${userNameWhoVoted}'`, function(err, rows) {
     if (err) {
       throw err;
     } else {
+      let usersNameVoted = [], datesOfVote = [];
       for (let i = 0; i < rows.length; ++i) {
-        if (userNameWhoGotVoted == rows[i].name) {
-          let userVotes = rows[i].votes;
-          let lastTimeYouVoted = rows[i].lastTimeYouVoted;
-          for (let i = 0; i < rows.length; ++i) {
-          }
-          console.log("lastTimeYouVoted= " + lastTimeYouVoted);
-          let dateAfterADay = new Date(new Date() + "UTC");
-          dateAfterADay.setDate(dateAfterADay.getDate() + 1);
-          let dateAfterADayFormatted = dateAfterADay.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-          console.log(dateAfterADayFormatted);
-
-          if (lastTimeYouVoted == null || dateAfterADayFormatted < lastTimeYouVoted) {
-            console.log("se intra");
-            connection.query(`UPDATE users SET votes = '${++userVotes}', lastTimeYouVoted = CURRENT_TIMESTAMP WHERE name = '${userNameWhoGotVoted}'`, (err) => {
-              if (err) {
-                throw err;
-              } else {
-                console.log("You did vote.");
-                res.redirect('http://localhost:3000/users/presidentList');
-              }
-            });
-          } else {
-            console.log("You can only vote once a day.")
-            res.redirect('http://localhost:3000/users/login');
-          }
-        }
+        usersNameVoted[i] = rows[i].whoWasVoted;
+        datesOfVote[i] = rows[i].dateOfVote;
       }
+      res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote});
     }
-  });*/
+  });
+
 });
 
 module.exports = router;

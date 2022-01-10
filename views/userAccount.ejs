@@ -1,23 +1,50 @@
 <!DOCTYPE html>
 <html>
     <head>
-    </head> <!-- ???!!! -->
-    <body> <!--Pot sa trimit asta:? /users/presidentialCandidates/<%= registeredUserInfo %>-->
-        info: <%= registeredUserInfo %>
-        <form action="/users/presidentialCandidates/<%= registeredUserInfo.name %>" method="GET">
-            <input type="submit" value="Presidential candidates">
-        </form>
-        <br><br>
-        <% if (registeredUserInfo.runForPresident != "YES") { %>
-            <form action="/users/runForPresident/<%= registeredUserInfo.name %>" method="POST">
-                <input type="submit" value="Run for president">
-            </form>
-        <% } else { %>
-            You are already in the presidential list.
-        <% } %>
-        <br><br>
-        <%= registeredUserInfo.name %>'s vote history:
-        <br>
-        ...?
+        <link rel='stylesheet' href='/stylesheets/index.css' />
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-1BmE4kWBq78iYhFldvKuhfTAU6auU8tT94WrHftjDbrCEXSU1oBoqyl2QvZ6jIW3" crossorigin="anonymous">
+    </head>
+    <body>
+        <section class="vh-100 bg-image" style="background-image: url('https://mdbcdn.b-cdn.net/img/Photos/new-templates/search-box/img4.webp');">
+            <div class="mask d-flex align-items-center h-100 gradient-custom-3">
+                <div class="container h-100">
+                    <div class="row d-flex justify-content-center align-items-center h-100">
+                        <div class="col-12 col-md-9 col-lg-7 col-xl-6">
+                            <div class="card" style="border-radius: 15px;">
+                                <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
+
+                                <div class="card-body p-5">
+                                    <form action="/users/presidentialCandidates/<%= registeredUserInfo.name %>" method="GET">
+                                        <div class="d-flex justify-content-center">
+                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+                                        </div>
+                                    </form>
+                                    <br><br>
+
+                                    <% if (registeredUserInfo.runForPresident != "YES") { %>
+                                        <form action="/users/runForPresident/<%= registeredUserInfo.name %>" method="POST">
+                                            <div class="d-flex justify-content-center">
+                                                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                            </div>
+                                        </form>
+                                    <% } else { %>
+                                        <div class="d-flex justify-content-center">
+                                            <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                        </div>
+                                    <% } %>
+                                    <br><br>
+
+                                    <form action="/users/voteHistory/<%= registeredUserInfo.name %>" method="GET">
+                                        <div class="d-flex justify-content-center">
+                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Your vote history">
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </section>
     </body>
 </html>
