@@ -3,8 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "scripts": {
-    "start": "nodemon ./bin/www",
-    "heroku-postbuild": "npm run build"
+    "start": "nodemon ./bin/www"
   },
   "dependencies": {
     "connect-flash": "^0.1.1",
