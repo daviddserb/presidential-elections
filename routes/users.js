@@ -62,12 +62,21 @@ connection.query('CREATE TABLE IF NOT EXISTS vote_history(' +
 //Pop-up messages
 router.get('/popUpMessage', (req, res) => {
     console.log("\n se intra in /popUpMessage \n");
-    console.log(keyWord_popUpMessage);
+    //console.log(req.flash('message')); //because it doesn't come as a string
+    let actualMessage = "" + req.flash('message'); //I make it a string
+    console.log(actualMessage);
 
-    if (keyWord_popUpMessage == "home page") {
-        res.render('index', { popUpMessage: req.flash('message')});
-    } else {
-        res.render('presidentList', {popUpMessage: req.flash('message')});
+    if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.') {
+        console.log("se intra in indexxxxxxxxxxxx");
+        res.render('index', { popUpMessage: actualMessage});
+    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
+        res.render('presidentList', {popUpMessage: actualMessage});
+    } else { //if you refresh the page, after you got the pop-up message
+        if (appRunOn == "localHost") {
+            res.redirect(`http://localhost:3000/`);
+        } else {
+            res.redirect(`https://presidential--elections.herokuapp.com/`);
+        }
     }
 });
 
@@ -76,7 +85,6 @@ router.post('/createAccount', function(req, res) {
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
-    let keyWord_popUpMessage = "home page";
 
     connection.query("INSERT INTO users(name, email, password)" +
     "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
@@ -100,7 +108,6 @@ router.post('/login', function (req, res) {
             throw err;
         } else {
             if (rows[0] == undefined) {
-                let keyWord_popUpMessage = "home page";
                 req.flash('message', 'This account does not exist.');
                 res.redirect('popUpMessage');
             } else {
@@ -166,7 +173,6 @@ router.post("/vote/:name1/:name2", function (req, res) {
 
     let userNameWhoGotVoted = req.params.name1;
     let userNameWhoVoted = req.params.name2;
-    let keyWord_popUpMessage = "president list";
 
     console.log("userNameWhoWasVoted= " + userNameWhoGotVoted);
     console.log("userNameWhoVoted= " + userNameWhoVoted);
@@ -213,7 +219,6 @@ router.post("/vote/:name1/:name2", function (req, res) {
                         }
                     });
                 } else {
-                    keyWord_popUpMessage = "presidential candidates";
                     req.flash('message', 'You can only vote once per day.');
                     res.redirect('../../popUpMessage');
                 }
