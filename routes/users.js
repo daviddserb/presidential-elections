@@ -222,7 +222,7 @@ router.get('/voteHistory/:registeredUserName', function (req, res) {
                 usersNameVoted[i] = rows[i].whoWasVoted;
                 datesOfVote[i] = rows[i].dateOfVote;
             }
-            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : "localHost"});
+            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : appRunOn});
         }
     });
 });
