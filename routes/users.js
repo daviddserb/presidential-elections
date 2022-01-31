@@ -4,18 +4,23 @@ var router = express.Router();
 
 var keyWord_popUpMessage = "home page";
 
+var connection;
+var appRunOn;
+
 if (process.env.JAWSDB_URL) {
     //Connect to JawsDB
-    var connection = mysql.createConnection(process.env.JAWSDB_URL);
+    connection = mysql.createConnection(process.env.JAWSDB_URL);
+    appRunOn = "Heroku";
 } else {
     //Connect to MySQL Connections
-    var connection = mysql.createConnection({
+    connection = mysql.createConnection({
         host: "localhost",
         user: "root",
         password: "password",
         database: "presidential_elections_db",
         port: "3306"
     });
+    appRunOn = "localHost";
 }
 
 //Connect to the database
@@ -217,7 +222,7 @@ router.get('/voteHistory/:registeredUserName', function (req, res) {
                 usersNameVoted[i] = rows[i].whoWasVoted;
                 datesOfVote[i] = rows[i].dateOfVote;
             }
-            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote});
+            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : "localHost"});
         }
     });
 });
