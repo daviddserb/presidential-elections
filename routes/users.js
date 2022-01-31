@@ -1,17 +1,22 @@
-var express = require('express');
-var router = express.Router();
+const express = require('express');
 const mysql = require('mysql');
+var router = express.Router();
 
 var keyWord_popUpMessage = "home page";
 
-//Connect to MySQL Connections
-const connection = mysql.createConnection({
-    host: "localhost",
-    user: "root",
-    password: "password",
-    database: "presidential_elections_db",
-    port: "3306"
-});
+if (process.env.JAWSDB_URL) {
+    //Connect to JawsDB
+    var connection = mysql.createConnection(process.env.JAWSDB_URL);
+} else {
+    //Connect to MySQL Connections
+    var connection = mysql.createConnection({
+        host: "localhost",
+        user: "root",
+        password: "password",
+        database: "presidential_elections_db",
+        port: "3306"
+    });
+}
 
 //Connect to the database
 connection.connect((err) => {
