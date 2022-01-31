@@ -172,7 +172,7 @@ router.post("/vote/:name1/:name2", function (req, res) {
     if (userNameWhoGotVoted == userNameWhoVoted) {
         req.flash('message', 'You can not vote yourself.');
         res.redirect('../../popUpMessage');
-        break;
+        //break;
     } else {
         connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
             if (err) {
