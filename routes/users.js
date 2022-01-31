@@ -150,7 +150,11 @@ router.post("/runForPresident/:name", function (req, res) {
         if (err) {
             throw err;
         } else {
-            res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+            if (appRunOn == "localHost") {
+                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+            } else {
+                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userName}`);
+            }
         }
     });
 });
@@ -196,7 +200,11 @@ router.post("/vote/:name1/:name2", function (req, res) {
                         if (err) {
                             throw err;
                         } else {
-                            res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                            if (appRunOn == "localHost") {
+                                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                            } else {
+                                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userNameWhoVoted}`);
+                            }
                         }
                     });
                 } else {
