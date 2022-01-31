@@ -25,8 +25,11 @@
                                     <% } %>
                                 </div>
                             </div>
-                            
-                            <a class="btn btn-success btn-block gradient-custom-4 text-body" href="http://localhost:3000">Home page</a>
+                            <% if (appRunOn == "localHost") { %>
+                                <a class="btn btn-success btn-block gradient-custom-4 text-body" href="http://localhost:3000">Home page</a>
+                            <% } else { %>
+                                <a class="btn btn-success btn-block gradient-custom-4 text-body" href="https://presidential--elections.herokuapp.com/">Home page</a>
+                            <% } %>
                         </div>
                     </div>
                 </div>

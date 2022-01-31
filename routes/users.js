@@ -2,20 +2,23 @@ const express = require('express');
 const mysql = require('mysql');
 var router = express.Router();
 
-var keyWord_popUpMessage = "home page";
+var connection;
+var appRunOn;
 
 if (process.env.JAWSDB_URL) {
     //Connect to JawsDB
-    var connection = mysql.createConnection(process.env.JAWSDB_URL);
+    connection = mysql.createConnection(process.env.JAWSDB_URL);
+    appRunOn = "Heroku";
 } else {
     //Connect to MySQL Connections
-    var connection = mysql.createConnection({
+    connection = mysql.createConnection({
         host: "localhost",
         user: "root",
         password: "password",
         database: "presidential_elections_db",
         port: "3306"
     });
+    appRunOn = "localHost";
 }
 
 //Connect to the database
@@ -59,11 +62,21 @@ connection.query('CREATE TABLE IF NOT EXISTS vote_history(' +
 //Pop-up messages
 router.get('/popUpMessage', (req, res) => {
     console.log("\n se intra in /popUpMessage \n");
+    //console.log(req.flash('message')); //because it doesn't come as a string
+    let actualMessage = "" + req.flash('message'); //I make it a string
+    console.log(actualMessage);
 
-    if (keyWord_popUpMessage == "home page") {
-        res.render('index', { popUpMessage: req.flash('message')});
-    } else {
-        res.render('presidentList', {popUpMessage: req.flash('message')});
+    if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
+        console.log("se intra in indexxxxxxxxxxxx");
+        res.render('index', { popUpMessage: actualMessage});
+    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
+        res.render('presidentList', {popUpMessage: actualMessage});
+    } else { //if you refresh the page, after you got the pop-up message
+        if (appRunOn == "localHost") {
+            res.redirect(`http://localhost:3000/`);
+        } else {
+            res.redirect(`https://presidential--elections.herokuapp.com/`);
+        }
     }
 });
 
@@ -145,7 +158,11 @@ router.post("/runForPresident/:name", function (req, res) {
         if (err) {
             throw err;
         } else {
-            res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+            if (appRunOn == "localHost") {
+                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+            } else {
+                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userName}`);
+            }
         }
     });
 });
@@ -163,7 +180,10 @@ router.post("/vote/:name1/:name2", function (req, res) {
     if (userNameWhoGotVoted == userNameWhoVoted) {
         req.flash('message', 'You can not vote yourself.');
         res.redirect('../../popUpMessage');
+        console.log("#########\n SE MERGE MAI DEPARTE\n ##############")
+        //break;
     } else {
+        console.log("se intra in else");
         connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
             if (err) {
                 throw err;
@@ -191,17 +211,21 @@ router.post("/vote/:name1/:name2", function (req, res) {
                         if (err) {
                             throw err;
                         } else {
-                            res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                            if (appRunOn == "localHost") {
+                                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                            } else {
+                                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userNameWhoVoted}`);
+                            }
                         }
                     });
                 } else {
-                    keyWord_popUpMessage = "presidential candidates";
                     req.flash('message', 'You can only vote once per day.');
                     res.redirect('../../popUpMessage');
                 }
             }
         });
     }
+    console.log("la sf de else")
 });
 
 //Vote History
@@ -217,7 +241,7 @@ router.get('/voteHistory/:registeredUserName', function (req, res) {
                 usersNameVoted[i] = rows[i].whoWasVoted;
                 datesOfVote[i] = rows[i].dateOfVote;
             }
-            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote});
+            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : appRunOn});
         }
     });
 });
