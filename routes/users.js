@@ -2,8 +2,6 @@ const express = require('express');
 const mysql = require('mysql');
 var router = express.Router();
 
-var keyWord_popUpMessage = "home page";
-
 var connection;
 var appRunOn;
 
@@ -64,6 +62,7 @@ connection.query('CREATE TABLE IF NOT EXISTS vote_history(' +
 //Pop-up messages
 router.get('/popUpMessage', (req, res) => {
     console.log("\n se intra in /popUpMessage \n");
+    console.log(keyWord_popUpMessage);
 
     if (keyWord_popUpMessage == "home page") {
         res.render('index', { popUpMessage: req.flash('message')});
@@ -77,6 +76,7 @@ router.post('/createAccount', function(req, res) {
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
+    let keyWord_popUpMessage = "home page";
 
     connection.query("INSERT INTO users(name, email, password)" +
     "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
@@ -100,6 +100,7 @@ router.post('/login', function (req, res) {
             throw err;
         } else {
             if (rows[0] == undefined) {
+                let keyWord_popUpMessage = "home page";
                 req.flash('message', 'This account does not exist.');
                 res.redirect('popUpMessage');
             } else {
@@ -165,6 +166,7 @@ router.post("/vote/:name1/:name2", function (req, res) {
 
     let userNameWhoGotVoted = req.params.name1;
     let userNameWhoVoted = req.params.name2;
+    let keyWord_popUpMessage = "president list";
 
     console.log("userNameWhoWasVoted= " + userNameWhoGotVoted);
     console.log("userNameWhoVoted= " + userNameWhoVoted);
@@ -172,8 +174,10 @@ router.post("/vote/:name1/:name2", function (req, res) {
     if (userNameWhoGotVoted == userNameWhoVoted) {
         req.flash('message', 'You can not vote yourself.');
         res.redirect('../../popUpMessage');
+        console.log("#########\n SE MERGE MAI DEPARTE\n ##############")
         //break;
     } else {
+        console.log("se intra in else");
         connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
             if (err) {
                 throw err;
@@ -216,6 +220,7 @@ router.post("/vote/:name1/:name2", function (req, res) {
             }
         });
     }
+    console.log("la sf de else")
 });
 
 //Vote History
