@@ -66,7 +66,7 @@ router.get('/popUpMessage', (req, res) => {
     let actualMessage = "" + req.flash('message'); //I make it a string
     console.log(actualMessage);
 
-    if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.') {
+    if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
         console.log("se intra in indexxxxxxxxxxxx");
         res.render('index', { popUpMessage: actualMessage});
     } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
