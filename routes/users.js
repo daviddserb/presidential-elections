@@ -60,15 +60,14 @@ connection.query('CREATE TABLE IF NOT EXISTS vote_history(' +
 });
 
 //Pop-up messages
-router.get('/popUpMessage', (req, res) => {
-    console.log("\n se intra in /popUpMessage \n");
+router.get('/pop-up-message', (req, res) => {
+    console.log("\n se intra in /pop-up-message \n");
     //console.log(req.flash('message')); //because it doesn't come as a string
     let actualMessage = "" + req.flash('message'); //I make it a string
     console.log(actualMessage);
 
     if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
-        console.log("se intra in indexxxxxxxxxxxx");
-        res.render('index', { popUpMessage: actualMessage});
+        res.render('homePage', { popUpMessage: actualMessage});
     } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
         res.render('presidentList', {popUpMessage: actualMessage});
     } else { //if you refresh the page, after you got the pop-up message
@@ -80,8 +79,8 @@ router.get('/popUpMessage', (req, res) => {
     }
 });
 
-//Create account
-router.post('/createAccount', function(req, res) {
+//Create account/Register
+router.post('/register', function(req, res) {
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
@@ -90,10 +89,10 @@ router.post('/createAccount', function(req, res) {
     "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
         if (err) {
             req.flash('message', 'The name or the email is already taken, please change it.');
-            res.redirect('popUpMessage');
+            res.redirect('pop-up-message');
         } else {
             req.flash('message', 'Account successfully created.');
-            res.redirect('popUpMessage');
+            res.redirect('pop-up-message');
         }
     });
 });
@@ -109,7 +108,7 @@ router.post('/login', function (req, res) {
         } else {
             if (rows[0] == undefined) {
                 req.flash('message', 'This account does not exist.');
-                res.redirect('popUpMessage');
+                res.redirect('pop-up-message');
             } else {
                 res.render('userAccount', {registeredUserInfo: rows[0]});
             }
@@ -118,7 +117,7 @@ router.post('/login', function (req, res) {
 });
 
 //Presidential candidates
-router.get('/presidentialCandidates/:userName', function (req, res) {
+router.get('/president/list/:userName', function (req, res) {
     let loggedInUserName = req.params.userName;
     
     connection.query(`SELECT name FROM users WHERE runForPresident = "YES"`, function(err, rows) {
@@ -151,7 +150,7 @@ router.get('/presidentialCandidates/:userName', function (req, res) {
 });
 
 //Run for president
-router.post("/runForPresident/:name", function (req, res) {
+router.post("/president/run/:name", function (req, res) {
     let userName = req.params.name;
 
     connection.query(`UPDATE users SET runForPresident = "YES" WHERE name = '${userName}'`, (err) => {
@@ -159,16 +158,16 @@ router.post("/runForPresident/:name", function (req, res) {
             throw err;
         } else {
             if (appRunOn == "localHost") {
-                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+                res.redirect(`http://localhost:3000/users/president/list/${userName}`);
             } else {
-                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userName}`);
+                res.redirect(`https://presidential--elections.herokuapp.com/users/president/list/${userName}`);
             }
         }
     });
 });
 
 //Vote
-router.post("/vote/:name1/:name2", function (req, res) {
+router.post("/user/:name1/:name2/vote", function (req, res) {
     console.log("\n se intra in /vote");
 
     let userNameWhoGotVoted = req.params.name1;
@@ -179,11 +178,8 @@ router.post("/vote/:name1/:name2", function (req, res) {
 
     if (userNameWhoGotVoted == userNameWhoVoted) {
         req.flash('message', 'You can not vote yourself.');
-        res.redirect('../../popUpMessage');
-        console.log("#########\n SE MERGE MAI DEPARTE\n ##############")
-        //break;
+        res.redirect('../../pop-up-message');
     } else {
-        console.log("se intra in else");
         connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
             if (err) {
                 throw err;
@@ -212,24 +208,23 @@ router.post("/vote/:name1/:name2", function (req, res) {
                             throw err;
                         } else {
                             if (appRunOn == "localHost") {
-                                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                                res.redirect(`http://localhost:3000/users/president/list/${userNameWhoVoted}`);
                             } else {
-                                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userNameWhoVoted}`);
+                                res.redirect(`https://presidential--elections.herokuapp.com/users/president/list/${userNameWhoVoted}`);
                             }
                         }
                     });
                 } else {
                     req.flash('message', 'You can only vote once per day.');
-                    res.redirect('../../popUpMessage');
+                    res.redirect('../../pop-up-message');
                 }
             }
         });
     }
-    console.log("la sf de else")
 });
 
 //Vote History
-router.get('/voteHistory/:registeredUserName', function (req, res) {
+router.get('/votes/history/:registeredUserName', function (req, res) {
     let userNameWhoVoted = req.params.registeredUserName;
 
     connection.query(`SELECT * FROM vote_history WHERE whoVoted = '${userNameWhoVoted}'`, function(err, rows) {
@@ -241,7 +236,7 @@ router.get('/voteHistory/:registeredUserName', function (req, res) {
                 usersNameVoted[i] = rows[i].whoWasVoted;
                 datesOfVote[i] = rows[i].dateOfVote;
             }
-            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : appRunOn});
+            res.render('votesHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : appRunOn});
         }
     });
 });

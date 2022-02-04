@@ -14,7 +14,7 @@
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
 
                                 <div class="card-body p-5">
-                                    <form action="/users/presidentialCandidates/<%= registeredUserInfo.name %>" method="GET">
+                                    <form action="/users/president/list/<%= registeredUserInfo.name %>" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
                                         </div>
@@ -22,7 +22,7 @@
                                     <br><br>
 
                                     <% if (registeredUserInfo.runForPresident != "YES") { %>
-                                        <form action="/users/runForPresident/<%= registeredUserInfo.name %>" method="POST">
+                                        <form action="/users/president/run/<%= registeredUserInfo.name %>" method="POST">
                                             <div class="d-flex justify-content-center">
                                                 <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
                                             </div>
@@ -34,7 +34,7 @@
                                     <% } %>
                                     <br><br>
 
-                                    <form action="/users/voteHistory/<%= registeredUserInfo.name %>" method="GET">
+                                    <form action="/users/votes/history/<%= registeredUserInfo.name %>" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Your vote history">
                                         </div>
