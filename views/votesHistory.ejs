@@ -16,7 +16,7 @@
                                 <div class="card-body p-5">
                                     <% for (let i = 0; i < allPresidencies.length; ++i) { %>
                                         <ul>
-                                            "<%= i + 1 %>. <%= allPresidencies[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> -> <%= allPresidencies[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>"
+                                            <%= i + 1 %>. <%= allPresidencies[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allPresidencies[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
                                             <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
                                                 <ul>
                                                     <% if (allPresidencies[i].start < date[j] && date[j] < allPresidencies[i].stop) { %>
