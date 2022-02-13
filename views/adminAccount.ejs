@@ -10,25 +10,13 @@
                 <div class="container h-100">
                     <div class="row d-flex justify-content-center align-items-center h-100">
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
-                            <% if (popUpMessage == 'The presidential elections have not started so you can not run for president.' || popUpMessage == 'The presidential elections have not started so there are no presidential candidates.') { %>
-                                <div class="alert alert-danger">
+                            <% if (popUpMessage == 'Presidency succesfully created.') { %>
+                                <div class="alert alert-success">
                                     <%= popUpMessage %>
                                 </div>
                             <% } %>
                             <div class="card" style="border-radius: 15px;">
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
-
-                                <% if (registeredUserInfo.role != "runForPresident") { %>
-                                    <form action="/users/president/run" method="POST">
-                                        <div class="d-flex justify-content-center">
-                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                        </div>
-                                    </form>
-                                <% } else { %>
-                                    <div class="d-flex justify-content-center">
-                                        <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                    </div>
-                                <% } %>
 
                                 <div class="card-body p-5">
                                     <form action="/users/president/list" method="GET">
@@ -37,11 +25,17 @@
                                         </div>
                                     </form>
                                     <br><br>
-                                    
-                                    <form action="/users/votes/history" method="GET">
-                                        <div class="d-flex justify-content-center">
-                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Your vote history">
-                                        </div>
+
+                                    <form action="/users/president/elections" method="POST">
+                                        Start presidency:
+                                        <input type="text" placeholder="yyyy-MM-dd hh:mm:ss" name="startPresidency">
+                                        <br>
+
+                                        Stop presidency:
+                                        <input type="text" placeholder="yyyy-MM-dd hh:mm:ss" name="stopPresidency">
+                                        <br>
+                                        
+                                        <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Submit">
                                     </form>
                                 </div>
                             </div>

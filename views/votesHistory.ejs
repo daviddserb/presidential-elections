@@ -12,20 +12,23 @@
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
                             <div class="card" style="border-radius: 15px;">
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserName %> </h2>
-                                
-                                <% if (usersNameVoted.length == 0) { %>
-                                    <h2> You did not vote for nobody </h2>
-                                <% } %>
 
                                 <div class="card-body p-5">
-                                    <% for (let i = 0; i < usersNameVoted.length; ++i) { %>
+                                    <% for (let i = 0; i < allPresidencies.length; ++i) { %>
                                         <ul>
-                                            <%= i + 1 %>. <%= usersNameVoted[i] %> ~ <%= date[i] %>
+                                            "<%= i + 1 %>. <%= allPresidencies[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> -> <%= allPresidencies[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>"
+                                            <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
+                                                <ul>
+                                                    <% if (allPresidencies[i].start < date[j] && date[j] < allPresidencies[i].stop) { %>
+                                                        <%= ++cnt %>. <%= usersNameVoted[j] %>
+                                                    <% } %>
+                                                </ul>
+                                            <% } %>
                                         </ul>
                                     <% } %>
                                 </div>
                             </div>
-                            <% if (appRunOn == "localHost") { %>
+                            <% if (appRunOn == "localhost") { %>
                                 <a class="btn btn-success btn-block gradient-custom-4 text-body" href="http://localhost:3000">Home page</a>
                             <% } else { %>
                                 <a class="btn btn-success btn-block gradient-custom-4 text-body" href="https://presidential--elections.herokuapp.com/">Home page</a>
