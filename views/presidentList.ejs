@@ -18,20 +18,20 @@
                                 <div class="card" style="border-radius: 15px;">
 
                                     <div class="card-body p-5">
-                                        <% for (let i = 0; i < usersNameWhoRunForPresident.length; ++i) { %>
+                                        <% for (let i = 0; i < candidates.length; ++i) { %>
                                             <ul>
-                                                <%= i + 1 %>. <%= usersNameWhoRunForPresident[i] %>
+                                                <%= i + 1 %>. <%= candidates[i].candidate %>
                                                 <br>
                             
-                                                <% for (let j = 0; j < usersNameWithVotes.length; ++j) { %>
-                                                    <% if (usersNameWhoRunForPresident[i] == usersNameWithVotes[j].elected) { %>
-                                                        votes: <%= usersNameWithVotes[j].votes %>
-                                                        <% break; %>
-                                                    <% } else if (j == usersNameWithVotes.length - 1) { %>
+                                                <% for (let j = 0; j < electeds.length; ++j) { %>
+                                                    <% if (candidates[i].candidate == electeds[j].elected) { %>
+                                                        votes: <%= electeds[j].votes %>
+                                                        <% break %>
+                                                    <% } else if (j == electeds.length - 1) { %>
                                                         votes: 0
                                                     <% } %>
                                                 <% } %>
-                                                <form action="/users/user/<%= usersNameWhoRunForPresident[i] %>/vote" method="POST">
+                                                <form action="/users/user/<%= candidates[i].candidate %>/vote" method="POST">
                                                     <input type="submit" class="btn btn-success btn-block gradient-custom-4 text-body" value="Vote">
                                                 </form>
                                             </ul>

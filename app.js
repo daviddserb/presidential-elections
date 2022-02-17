@@ -29,8 +29,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 //for pop-up messages
 app.use(cookieSession({
     secret: 'secret-cookieSession',
-    saveUninitialized: true,
-    resave: true
+    saveUninitialized: false,
+    resave: false
   }));
 app.use(flash());
 

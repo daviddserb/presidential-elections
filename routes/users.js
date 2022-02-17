@@ -61,6 +61,18 @@ connection.query('CREATE TABLE IF NOT EXISTS elections(' +
     }
 });
 
+connection.query('CREATE TABLE IF NOT EXISTS candidates(' + 
+'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
+'nr_election INT(255),' +
+'candidate VARCHAR(255)' +
+')', (err) => {
+    if (err) {
+        throw err;
+    } else {
+        console.log("table 'candidates' created in the database");
+    }
+});
+
 connection.query('CREATE TABLE IF NOT EXISTS votes(' + 
 'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
 'voter VARCHAR(255),' +
@@ -76,25 +88,19 @@ connection.query('CREATE TABLE IF NOT EXISTS votes(' +
 
 router.get('/pop-up-message', (req, res) => {
     console.log("\n se intra in /pop-up-message \n");
-    
-    //console.log(req.flash('message')); //because it doesn't come as a string
-    let actualMessage = req.flash('message') + ""; //I make it a string
+
+    let actualMessage = req.flash('message') + ""; //make it string
+    console.log('actualMessage:');
     console.log(actualMessage);
 
     if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
-        res.render('homePage', { popUpMessage: actualMessage});
+        res.render('homePage', {popUpMessage: actualMessage});
     } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
         res.render('presidentList', {popUpMessage: actualMessage});
     } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
         res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: actualMessage});
     } else if (actualMessage == 'Presidency succesfully created.') {
         res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: actualMessage});
-    } else { //if you refresh the page, after you got the pop-up message
-        if (appRunOn == "localhost") {
-            res.redirect(`http://localhost:3000/`);
-        } else {
-            res.redirect(`https://presidential--elections.herokuapp.com/`);
-        }
     }
 });
 
@@ -119,23 +125,27 @@ router.post('/login', function (req, res) {
     let email = req.body.searchEmail;
     let password = req.body.searchPassword;
 
-    connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows) {
-        if (err) {
-            throw err;
+    connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows, a, b) {
+        if (rows[0] == undefined) {
+            req.flash('message', 'This account does not exist.');
+            res.redirect('pop-up-message');
         } else {
-            if (rows[0] == undefined) {
-                req.flash('message', 'This account does not exist.');
-                res.redirect('pop-up-message');
-            } else {
-                req.session.loggedInUserInfo = rows[0]; //save the logged in user informations with session
-                console.log(req.session.loggedInUserInfo);
-                
-                if (req.session.loggedInUserInfo.role != "admin") {
-                    res.render('userAccount', {registeredUserInfo: rows[0], popUpMessage: " "});
+            req.session.loggedInUserInfo = rows[0]; //save the logged in user informations with session
+
+            connection.query(`SELECT candidate FROM candidates`, function(err, rows) {
+                if (err) {
+                    throw err;
                 } else {
-                    res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: "adminAcc"});
+                    let candidates = rows;
+                    console.log("candidates:");
+                    console.log(candidates);
+                    if (req.session.loggedInUserInfo.role != "admin") {
+                        res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: candidates, popUpMessage: "userAcc"});
+                    } else {
+                        res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: candidates, popUpMessage: "adminAcc"});
+                    }
                 }
-            }
+            });
         }
     });
 });
@@ -156,7 +166,7 @@ router.post("/president/elections", function (req, res) {
         } else {
             console.log("inserted into elections");
             req.flash('message', 'Presidency succesfully created.');
-            res.redirect('../../pop-up-message');
+            res.redirect('../pop-up-message');
         }
     });
 });
@@ -172,8 +182,9 @@ router.post("/president/run", function (req, res) {
             let lastPresidency = rows[0];
             console.log(lastPresidency);
 
-            if (lastPresidency.start < new Date() && new Date() < lastPresidency.stop) {
-                connection.query(`UPDATE users SET role = "runForPresident" WHERE name = '${loggedInUserName}'`, (err) => {
+            if (lastPresidency.start <= new Date() && new Date() <= lastPresidency.stop) {
+                connection.query("INSERT INTO candidates(nr_election, candidate)" +
+                "VALUES ('"+ lastPresidency.id +"', '"+ loggedInUserName +"')", (err) => {
                     if (err) {
                         throw err;
                     } else {
@@ -196,6 +207,7 @@ router.get('/president/list', function (req, res) {
     console.log("\nse intra in /president/list/\n")
     let loggedInUserName = req.session.loggedInUserInfo.name;
     
+    //select the start and stop date of the last election
     connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, rows) {
         if (err) {
             throw err;
@@ -212,42 +224,28 @@ router.get('/president/list', function (req, res) {
             console.log("lastPresidency.stop");
             console.log(lastPresidencyStop);
 
+            //check if the election did end
             if (new Date() > lastPresidency.stop) {
-                console.log("SE STERG PRESEDINTII PT. CA S-A TERMINAT CURENTA CAMPANIE ELECTORALA");
-                connection.query(`UPDATE users SET role = NULL`, (err) => {
-                    if (err) {
-                        throw err;
-                    } else {
-                        req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
-                        res.redirect('../pop-up-message');
-                    }
-                });
+                console.log("The presidential elections have not started so there are no presidential candidates.");
+                req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
+                res.redirect('../pop-up-message');
             } else {
-                connection.query(`SELECT name FROM users WHERE role = "runForPresident"`, function(err, rows) {
+                //select all candidates
+                connection.query(`SELECT candidate FROM candidates`, function(err, rows) {
                     if (err) {
                         throw err;
                     } else {
-                        let usersNameWhoRunForPresident = [];
-                        for (let i = 0; i < rows.length; ++i) {
-                            usersNameWhoRunForPresident[i] = rows[i].name;
-                        }
-                        console.log("usersNameWhoRunForPresident");
-                        console.log(usersNameWhoRunForPresident);
+                        console.log("\nrows: (candidates)");
+                        console.log(rows)
 
-                        connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE vote_date >= '${lastPresidencyStart}' && vote_date <= '${lastPresidencyStop}' GROUP BY elected`, function (err, result) {
+                        //calculate votes
+                        connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE '${lastPresidencyStart}' <= vote_date && vote_date <= '${lastPresidencyStop}' GROUP BY elected`, function (err, result) {
                             if (err) {
                                 throw err;
                             } else {
-                                console.log("result");
+                                console.log("result: (electeds)");
                                 console.log(result);
-                                let usersNameWithVotes = [];
-                                for (let i = 0; i < result.length; ++i) {
-                                    usersNameWithVotes[i] = result[i];
-                                }
-                                console.log("usersNameWithVotes");
-                                console.log(usersNameWithVotes);
-                                
-                                res.render('presidentList', {loggedInUserName: loggedInUserName, usersNameWhoRunForPresident: usersNameWhoRunForPresident, usersNameWithVotes : usersNameWithVotes, popUpMessage: " "});
+                                res.render('presidentList', {loggedInUserName: loggedInUserName, candidates: rows, electeds : result, popUpMessage: " "});
                             }
                         });
                     }
@@ -342,37 +340,5 @@ router.get('/votes/history', function (req, res) {
         }
     });
 });
-
-/*
-router.get('/votes/history', function (req, res) {
-    console.log("\n se intra in /votes/history\n");
-    let userNameVoter = req.session.loggedInUserInfo.name;
-
-    connection.query(`SELECT * FROM votes WHERE voter = '${userNameVoter}'`, function(err, rows) {
-        if (err) {
-            throw err;
-        } else {
-            let usersNameVoted = [], datesOfVote = [];
-            for (let i = 0; i < rows.length; ++i) {
-                usersNameVoted[i] = rows[i].elected;
-                datesOfVote[i] = rows[i].vote_date;
-            }
-            console.log("usersNameVoted");
-            console.log(usersNameVoted);
-            console.log("datesOfVote");
-            console.log(datesOfVote);
-            connection.query(`SELECT * FROM elections`, function(err, rows) {
-                if (err) {
-                    throw err;
-                } else {
-                    let allPresidencies = rows;
-                    console.log("allPresidencies");
-                    console.log(allPresidencies);
-                    res.render('votesHistory', {registeredUserName: userNameVoter, usersNameVoted: usersNameVoted, date : datesOfVote, allPresidencies: allPresidencies, appRunOn : appRunOn});                }
-            });
-        }
-    });
-});
-*/
 
 module.exports = router;
