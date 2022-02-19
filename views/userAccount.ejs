@@ -10,31 +10,47 @@
                 <div class="container h-100">
                     <div class="row d-flex justify-content-center align-items-center h-100">
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
+                            <% if (popUpMessage == 'The presidential elections have not started so you can not run for president.' || popUpMessage == 'The presidential elections have not started so there are no presidential candidates.') { %>
+                                <div class="alert alert-danger">
+                                    <%= popUpMessage %>
+                                </div>
+                            <% } %>
+
                             <div class="card" style="border-radius: 15px;">
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
+                                
+                                <% if (candidates.length == 0) { %>
+                                    <form action="/users/president/run" method="POST">
+                                        <div class="d-flex justify-content-center">
+                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                        </div>
+                                    </form>
+                                <% } else { %>
+                                    <% for (let i = 0; i < candidates.length; ++i) { %>
+                                        <% if (registeredUserInfo.name == candidates[i].candidate) { %>
+                                            <div class="d-flex justify-content-center">
+                                                <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                            </div>
+                                            <% break %>
+                                        <% } else if (i == candidates.length - 1) { %>
+                                            <form action="/users/president/run" method="POST">
+                                                <div class="d-flex justify-content-center">
+                                                    <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                                </div>
+                                            </form>
+                                        <% } %>
+                                    <% } %>
+                                <% } %>
 
                                 <div class="card-body p-5">
-                                    <form action="/users/presidentialCandidates/<%= registeredUserInfo.name %>" method="GET">
+                                    <form action="/users/president/list" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
                                         </div>
                                     </form>
                                     <br><br>
-
-                                    <% if (registeredUserInfo.runForPresident != "YES") { %>
-                                        <form action="/users/runForPresident/<%= registeredUserInfo.name %>" method="POST">
-                                            <div class="d-flex justify-content-center">
-                                                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                            </div>
-                                        </form>
-                                    <% } else { %>
-                                        <div class="d-flex justify-content-center">
-                                            <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                        </div>
-                                    <% } %>
-                                    <br><br>
-
-                                    <form action="/users/voteHistory/<%= registeredUserInfo.name %>" method="GET">
+                                    
+                                    <form action="/users/votes/history" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Your vote history">
                                         </div>

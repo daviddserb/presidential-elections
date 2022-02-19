@@ -5,12 +5,17 @@ var router = express.Router();
 var connection;
 var appRunOn;
 
+/*let currentDate = new Date();
+currentDate = new Date(currentDate + "UTC");
+//currentDate = new Date(currentDate + "UTC").toISOString().replace(/T/, ' ').replace(/\..+/, '');
+console.log(currentDate);*/
+
 if (process.env.JAWSDB_URL) {
-    //Connect to JawsDB
+    //Create connection to JawsDB
     connection = mysql.createConnection(process.env.JAWSDB_URL);
-    appRunOn = "Heroku";
+    appRunOn = "heroku";
 } else {
-    //Connect to MySQL Connections
+    //Create connection to MySQL
     connection = mysql.createConnection({
         host: "localhost",
         user: "root",
@@ -18,25 +23,24 @@ if (process.env.JAWSDB_URL) {
         database: "presidential_elections_db",
         port: "3306"
     });
-    appRunOn = "localHost";
+    appRunOn = "localhost";
 }
 
-//Connect to the database
+//Connect to the database (localhost)
 connection.connect((err) => {
     if (err) {
         throw err;
     } else {
-        console.log("connected to the database");
+        console.log("connected to the database (localhost)");
     }
 });
 
-//Create the table in the database
 connection.query('CREATE TABLE IF NOT EXISTS users(' + 
 'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
 'name VARCHAR(255) UNIQUE NOT NULL,' +
 'email VARCHAR(255) UNIQUE NOT NULL,' +
 'password VARCHAR(255) NOT NULL,' +
-'runForPresident VARCHAR(255)' +
+'role VARCHAR(255)' +
 ')', (err) => {
 if (err) {
     throw err;
@@ -45,43 +49,62 @@ if (err) {
 }
 });
 
-//Create the table in the database for the vote history of some user
-connection.query('CREATE TABLE IF NOT EXISTS vote_history(' + 
+connection.query('CREATE TABLE IF NOT EXISTS elections(' + 
 'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
-'whoVoted VARCHAR(255),' +
-'whoWasVoted VARCHAR(255),' +
-'dateOfVote DATETIME' +
+'start DATETIME,' +
+'stop DATETIME' +
 ')', (err) => {
     if (err) {
         throw err;
     } else {
-        console.log("table 'vote_history' created in the database");
+        console.log("table 'elections' created in the database");
     }
 });
 
-//Pop-up messages
-router.get('/popUpMessage', (req, res) => {
-    console.log("\n se intra in /popUpMessage \n");
-    //console.log(req.flash('message')); //because it doesn't come as a string
-    let actualMessage = "" + req.flash('message'); //I make it a string
+connection.query('CREATE TABLE IF NOT EXISTS candidates(' + 
+'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
+'nr_election INT(255),' +
+'candidate VARCHAR(255)' +
+')', (err) => {
+    if (err) {
+        throw err;
+    } else {
+        console.log("table 'candidates' created in the database");
+    }
+});
+
+connection.query('CREATE TABLE IF NOT EXISTS votes(' + 
+'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
+'voter VARCHAR(255),' +
+'elected VARCHAR(255),' +
+'vote_date DATETIME' +
+')', (err) => {
+    if (err) {
+        throw err;
+    } else {
+        console.log("table 'votes' created in the database");
+    }
+});
+
+router.get('/pop-up-message', (req, res) => {
+    console.log("\n se intra in /pop-up-message \n");
+
+    let actualMessage = req.flash('message') + ""; //make it string
+    console.log('actualMessage:');
     console.log(actualMessage);
 
     if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
-        console.log("se intra in indexxxxxxxxxxxx");
-        res.render('index', { popUpMessage: actualMessage});
+        res.render('homePage', {popUpMessage: actualMessage});
     } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
         res.render('presidentList', {popUpMessage: actualMessage});
-    } else { //if you refresh the page, after you got the pop-up message
-        if (appRunOn == "localHost") {
-            res.redirect(`http://localhost:3000/`);
-        } else {
-            res.redirect(`https://presidential--elections.herokuapp.com/`);
-        }
+    } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
+        res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: actualMessage});
+    } else if (actualMessage == 'Presidency succesfully created.') {
+        res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: actualMessage});
     }
 });
 
-//Create account
-router.post('/createAccount', function(req, res) {
+router.post('/register', function(req, res) {
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
@@ -90,158 +113,230 @@ router.post('/createAccount', function(req, res) {
     "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
         if (err) {
             req.flash('message', 'The name or the email is already taken, please change it.');
-            res.redirect('popUpMessage');
+            res.redirect('pop-up-message');
         } else {
             req.flash('message', 'Account successfully created.');
-            res.redirect('popUpMessage');
+            res.redirect('pop-up-message');
         }
     });
 });
 
-//Log in
 router.post('/login', function (req, res) {
     let email = req.body.searchEmail;
     let password = req.body.searchPassword;
 
-    connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows) {
-        if (err) {
-            throw err;
+    connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows, a, b) {
+        if (rows[0] == undefined) {
+            req.flash('message', 'This account does not exist.');
+            res.redirect('pop-up-message');
         } else {
-            if (rows[0] == undefined) {
-                req.flash('message', 'This account does not exist.');
-                res.redirect('popUpMessage');
-            } else {
-                res.render('userAccount', {registeredUserInfo: rows[0]});
-            }
-        }
-    });
-});
+            req.session.loggedInUserInfo = rows[0]; //save the logged in user informations with session
 
-//Presidential candidates
-router.get('/presidentialCandidates/:userName', function (req, res) {
-    let loggedInUserName = req.params.userName;
-    
-    connection.query(`SELECT name FROM users WHERE runForPresident = "YES"`, function(err, rows) {
-        if (err) {
-            throw err;
-        } else {
-            let usersNameWhoRunForPresident = [];
-            for (let i = 0; i < rows.length; ++i) {
-                usersNameWhoRunForPresident[i] = rows[i].name;
-            }
-            console.log("usersNameWhoRunForPresident");
-            console.log(usersNameWhoRunForPresident);
-
-            connection.query(`SELECT whoWasVoted, COUNT(*) as votes FROM vote_history GROUP BY whoWasVoted`, function (err, result) {
+            connection.query(`SELECT candidate FROM candidates`, function(err, rows) {
                 if (err) {
                     throw err;
                 } else {
-                    let usersNameWithVotes = [];
-                    for (let i = 0; i < result.length; ++i) {
-                        usersNameWithVotes[i] = result[i];
+                    let candidates = rows;
+                    console.log("candidates:");
+                    console.log(candidates);
+                    if (req.session.loggedInUserInfo.role != "admin") {
+                        res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: candidates, popUpMessage: "userAcc"});
+                    } else {
+                        res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: candidates, popUpMessage: "adminAcc"});
                     }
-                console.log("usersNameWithVotes");
-                console.log(usersNameWithVotes);
-                
-                res.render('presidentList', {loggedInUserName: loggedInUserName, usersNameWhoRunForPresident: usersNameWhoRunForPresident, usersNameWithVotes : usersNameWithVotes, popUpMessage: " "});
                 }
             });
         }
     });
 });
 
-//Run for president
-router.post("/runForPresident/:name", function (req, res) {
-    let userName = req.params.name;
+//Admin
+router.post("/president/elections", function (req, res) {
+    console.log("\nse intra in /president/elections\n")
 
-    connection.query(`UPDATE users SET runForPresident = "YES" WHERE name = '${userName}'`, (err) => {
+    let startPresidency = req.body.startPresidency;
+    let stopPresidency = req.body.stopPresidency;
+    console.log(startPresidency);
+    console.log(stopPresidency);
+
+    connection.query("INSERT INTO elections (start, stop)" +
+    "VALUES ('"+  startPresidency +"', '"+ stopPresidency +"')", (err) => {
         if (err) {
             throw err;
         } else {
-            if (appRunOn == "localHost") {
-                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userName}`);
+            console.log("inserted into elections");
+            req.flash('message', 'Presidency succesfully created.');
+            res.redirect('../pop-up-message');
+        }
+    });
+});
+
+router.post("/president/run", function (req, res) {
+    console.log("\nse intra in /president/run\n")
+    let loggedInUserName = req.session.loggedInUserInfo.name;
+
+    connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, rows) {
+        if (err) {
+            throw err;
+        } else {
+            let lastPresidency = rows[0];
+            console.log(lastPresidency);
+
+            if (lastPresidency.start <= new Date() && new Date() <= lastPresidency.stop) {
+                connection.query("INSERT INTO candidates(nr_election, candidate)" +
+                "VALUES ('"+ lastPresidency.id +"', '"+ loggedInUserName +"')", (err) => {
+                    if (err) {
+                        throw err;
+                    } else {
+                        if (appRunOn == "localhost") {
+                            res.redirect(`http://localhost:3000/users/president/list`);
+                        } else {
+                            res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
+                        }
+                    }
+                });
             } else {
-                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userName}`);
+                req.flash('message', 'The presidential elections have not started so you can not run for president.');
+                res.redirect('../pop-up-message');
             }
         }
     });
 });
 
-//Vote
-router.post("/vote/:name1/:name2", function (req, res) {
-    console.log("\n se intra in /vote");
+router.get('/president/list', function (req, res) {
+    console.log("\nse intra in /president/list/\n")
+    let loggedInUserName = req.session.loggedInUserInfo.name;
+    
+    //select the start and stop date of the last election
+    connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, rows) {
+        if (err) {
+            throw err;
+        } else {
+            console.log("new Date():")
+            console.log(new Date());
+            let lastPresidency = rows[0];
+            console.log("lastPresidency");
+            console.log(lastPresidency);
+            let lastPresidencyStart = lastPresidency.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+            let lastPresidencyStop = lastPresidency.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+            console.log("lastPresidency.start");
+            console.log(lastPresidencyStart);
+            console.log("lastPresidency.stop");
+            console.log(lastPresidencyStop);
 
-    let userNameWhoGotVoted = req.params.name1;
-    let userNameWhoVoted = req.params.name2;
+            //check if the election did end
+            if (new Date() > lastPresidency.stop) {
+                console.log("The presidential elections have not started so there are no presidential candidates.");
+                req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
+                res.redirect('../pop-up-message');
+            } else {
+                //select all candidates
+                connection.query(`SELECT candidate FROM candidates`, function(err, rows) {
+                    if (err) {
+                        throw err;
+                    } else {
+                        console.log("\nrows: (candidates)");
+                        console.log(rows)
 
-    console.log("userNameWhoWasVoted= " + userNameWhoGotVoted);
-    console.log("userNameWhoVoted= " + userNameWhoVoted);
+                        //calculate votes
+                        connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE '${lastPresidencyStart}' <= vote_date && vote_date <= '${lastPresidencyStop}' GROUP BY elected`, function (err, result) {
+                            if (err) {
+                                throw err;
+                            } else {
+                                console.log("result: (electeds)");
+                                console.log(result);
+                                res.render('presidentList', {loggedInUserName: loggedInUserName, candidates: rows, electeds : result, popUpMessage: " "});
+                            }
+                        });
+                    }
+                });
+            }
+        }
+    });
+});
 
-    if (userNameWhoGotVoted == userNameWhoVoted) {
+router.post("/user/:id/vote", function (req, res) {
+    console.log("\n se intra in /user/vote\n");
+
+    let userNameElected = req.params.id;
+    let userNameVoter = req.session.loggedInUserInfo.name;
+
+    console.log("userNameWhoWasVoted= " + userNameElected);
+    console.log("userNameVoter= " + userNameVoter);
+
+    if (userNameElected == userNameVoter) {
         req.flash('message', 'You can not vote yourself.');
-        res.redirect('../../popUpMessage');
-        console.log("#########\n SE MERGE MAI DEPARTE\n ##############")
-        //break;
+        res.redirect('../../pop-up-message');
     } else {
-        console.log("se intra in else");
-        connection.query(`SELECT dateOfVote FROM vote_history WHERE whoVoted = '${userNameWhoVoted}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
+        connection.query(`SELECT vote_date FROM votes WHERE voter = '${userNameVoter}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
             if (err) {
                 throw err;
             } else {
                 let presentDate = new Date(new Date() + "UTC");
-                let userNameWhoVoted_LastTimeHeVoted;
-                let userNameWhoVoted_LastTimeHeVoted_AfterADay;
+                let userNameVoter_LastTimeHeVoted;
+                let userNameVoter_LastTimeHeVoted_AfterADay;
 
                 if (rows[0] == undefined) { //when the user who wants to vote, never voted once before
-                    userNameWhoVoted_LastTimeHeVoted = "never";
+                    userNameVoter_LastTimeHeVoted = "never";
                 } else {
-                    userNameWhoVoted_LastTimeHeVoted = rows[0].dateOfVote;
-                    userNameWhoVoted_LastTimeHeVoted_AfterADay = userNameWhoVoted_LastTimeHeVoted;
-                    userNameWhoVoted_LastTimeHeVoted_AfterADay.setDate(userNameWhoVoted_LastTimeHeVoted_AfterADay.getDate() + 1)
+                    userNameVoter_LastTimeHeVoted = rows[0].vote_date;
+                    userNameVoter_LastTimeHeVoted_AfterADay = userNameVoter_LastTimeHeVoted;
+                    userNameVoter_LastTimeHeVoted_AfterADay.setDate(userNameVoter_LastTimeHeVoted_AfterADay.getDate() + 1)
                     
-                    console.log("userNameWhoVoted_LastTimeHeVoted_AfterADay:");
-                    console.log(userNameWhoVoted_LastTimeHeVoted_AfterADay);
+                    console.log("userNameVoter_LastTimeHeVoted_AfterADay:");
+                    console.log(userNameVoter_LastTimeHeVoted_AfterADay);
                     console.log("presentDate:");
                     console.log(presentDate);
                 }
 
-                if (userNameWhoVoted_LastTimeHeVoted == "never" || userNameWhoVoted_LastTimeHeVoted_AfterADay < presentDate) {
-                    connection.query("INSERT INTO vote_history(whoVoted, whoWasVoted, dateOfVote)" +
-                    "VALUES ('"+  userNameWhoVoted +"', '"+ userNameWhoGotVoted +"', CURRENT_TIMESTAMP)", (err) => {
+                if (userNameVoter_LastTimeHeVoted == "never" || userNameVoter_LastTimeHeVoted_AfterADay < presentDate) {
+                    connection.query("INSERT INTO votes (voter, elected, vote_date)" +
+                    "VALUES ('"+  userNameVoter +"', '"+ userNameElected +"', CURRENT_TIMESTAMP)", (err) => {
                         if (err) {
                             throw err;
                         } else {
-                            if (appRunOn == "localHost") {
-                                res.redirect(`http://localhost:3000/users/presidentialCandidates/${userNameWhoVoted}`);
+                            if (appRunOn == "localhost") {
+                                res.redirect(`http://localhost:3000/users/president/list`);
                             } else {
-                                res.redirect(`https://presidential--elections.herokuapp.com/users/presidentialCandidates/${userNameWhoVoted}`);
+                                res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
                             }
                         }
                     });
                 } else {
                     req.flash('message', 'You can only vote once per day.');
-                    res.redirect('../../popUpMessage');
+                    res.redirect('../../pop-up-message');
                 }
             }
         });
     }
-    console.log("la sf de else")
 });
 
-//Vote History
-router.get('/voteHistory/:registeredUserName', function (req, res) {
-    let userNameWhoVoted = req.params.registeredUserName;
+router.get('/votes/history', function (req, res) {
+    console.log("\n se intra in /votes/history\n");
+    let userNameVoter = req.session.loggedInUserInfo.name;
 
-    connection.query(`SELECT * FROM vote_history WHERE whoVoted = '${userNameWhoVoted}'`, function(err, rows) {
+    connection.query(`SELECT * FROM votes WHERE voter = '${userNameVoter}'`, function(err, rows) {
         if (err) {
             throw err;
         } else {
             let usersNameVoted = [], datesOfVote = [];
             for (let i = 0; i < rows.length; ++i) {
-                usersNameVoted[i] = rows[i].whoWasVoted;
-                datesOfVote[i] = rows[i].dateOfVote;
+                usersNameVoted[i] = rows[i].elected;
+                datesOfVote[i] = rows[i].vote_date;
             }
-            res.render('voteHistory', {registeredUserName: userNameWhoVoted, usersNameVoted: usersNameVoted, date : datesOfVote, appRunOn : appRunOn});
+            console.log("usersNameVoted");
+            console.log(usersNameVoted);
+            console.log("datesOfVote");
+            console.log(datesOfVote);
+            connection.query(`SELECT * FROM elections`, function(err, rows) {
+                if (err) {
+                    throw err;
+                } else {
+                    let allPresidencies = rows;
+                    console.log("allPresidencies");
+                    console.log(allPresidencies);
+                    res.render('votesHistory', {registeredUserName: userNameVoter, usersNameVoted: usersNameVoted, date : datesOfVote, allPresidencies: allPresidencies, appRunOn : appRunOn});                }
+            });
         }
     });
 });
