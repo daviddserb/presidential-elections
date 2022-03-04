@@ -1,5 +1,6 @@
 console.log("____ db/connection.js");
 const mysql = require('mysql');
+//const sync_sql = require('sync-sql');
 
 var connection, appRunOn;
 function createConnection() {
@@ -10,6 +11,7 @@ function createConnection() {
         appRunOn = "heroku";
     } else {
         //Create connection to MySQL
+        //connection = sync_sql.mysql({
         connection = mysql.createConnection({
             host: "localhost",
             user: "root",

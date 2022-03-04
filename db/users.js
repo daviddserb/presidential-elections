@@ -1,72 +1,101 @@
 console.log("##### se intra in db/users.js");
-
 const db_connection = require('./connection.js');
 const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
-const appRunOn = createConnection[1];
 
 function registerUser(name, email, password) {
-    console.log("##### registerUser()");
-    connection.query("INSERT INTO users(name, email, password)" +
-    "VALUES ('"+ name +"', '"+ email +"', '"+ password +"')", function(err) {
-        if (err) {
-            console.log("return false");
-            console.log(false);
-            return false;
-        } else {
-            console.log("return true");
-            return true;
-        }
+    /* Promise is an object who represents the eventual completion (or failure) of an 
+    asynchronous operation and its resulting value */
+    return new Promise((resolve, reject) => {
+        connection.query("INSERT INTO users(name, email, password)" +
+        " VALUES('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
+            //(error, result, fields)
+            if (err) {
+                resolve(false);
+            } else {
+                resolve(true);
+            }
+        });
     });
 }
 
+//E bine cu 2 functii separate sau cate e nevoie astfel incat fiecare functie sa faca un singur lucru din punct de vedere logic.
+// la id sa nu fac comparatia cu '' ci fara ''
+// sa folosesc limbajul standard, adica in loc de && sa folosesc AND 
+
 function loginUser(email, password) {
     console.log("##### se intra in loginUser()");
-    connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, function(err, rows) {
-        if (rows[0] == undefined) {
-            console.log(rows);
-            console.log(rows[0]);
-            return false;
-        } else {
-            return true;
-        }
+    return new Promise(async resolve => {
+        await connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, async function(err, res) {
+            if (res[0] == undefined) {
+                console.log("SE INTRA IN PRIMUL IF DIN DB");
+                resolve(false);
+            } else {
+                console.log("SE INTRA IN PRIMUL ELSE DIN DB");
+                resolve(res[0]);
+            }
+        });
+    });
+}
+
+function profile(loggedInUserName) {
+    return new Promise(async resolve => {
+        connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
+            if (err) {
+                console.log("@@@@@@@@@@@@@@@@@@@@");
+                throw err;
+            } else {
+                //let id = res[0].id;
+                //console.log(id);
+                //connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserName}' AND nr_election = ${res[0].id}`, function(err, res) {
+                connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserName}' AND '${res[0].start}' <= 'CURRENT_TIMESTAMP' AND 'CURRENT_TIMESTAMP' <= '${res[0].start}'`, function(err, res) {
+                    if (err) {
+                        console.log("#######################");
+                        throw err;
+                    } else {
+                        resolve(res[0]);
+                    }
+                });
+            }
+        });
     });
 }
 
 function startElections(startPresidency, stopPresidency) {
     console.log("##### se intra in startElections()");
-    connection.query("INSERT INTO elections (start, stop)" +
-    "VALUES ('"+  startPresidency +"', '"+ stopPresidency +"')", (err) => {
-        if (err) {
-            return err;
-        } else {
-            return true;
-        }
+    return new Promise(async resolve => {
+        connection.query("INSERT INTO elections (start, stop)" +
+        "VALUES ('"+  startPresidency +"', '"+ stopPresidency +"')", (err) => {
+            if (err) {
+                resolve(false);
+            } else {
+                resolve(true);
+            }
+        });
     });
 }
 
 function runForPresident(loggedInUserName) {
     console.log("##### se intra in runForPresident()");
-    connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, rows) {
-        if (err) {
-            return err;
-        } else {
-            let lastPresidency = rows[0];
-            console.log(lastPresidency);
-
-            if (lastPresidency.start <= new Date() && new Date() <= lastPresidency.stop) {
-                connection.query("INSERT INTO candidates(nr_election, candidate)" +
-                "VALUES ('"+ lastPresidency.id +"', '"+ loggedInUserName +"')", (err) => {
-                    if (err) {
-                        return err;
-                    } else {
-                        return true;
-                    }
-                });
+    return new Promise(async resolve => {
+        connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
+            if (err) {
+                resolve(false);
             } else {
-                return false;
+                if (res[0].start <= new Date() && new Date() <= res[0].stop) {
+                    connection.query("INSERT INTO candidates(nr_election, candidate)" +
+                    "VALUES ('"+ res[0].id +"', '"+ loggedInUserName +"')", (err) => {
+                        if (err) {
+                            resolve(false);
+                        } else {
+                            resolve(true);
+                        }
+                    });
+                } else {
+                    resolve(false);
+                }
             }
-        }
+        });
     });
 }
 
@@ -188,25 +217,13 @@ function votesHistory(userNameVoter) {
     });
 }
 
-//helper functions
-function selectCandidates() {
-    console.log("+++ se intra in selectCandidates()")
-    connection.query(`SELECT * FROM candidates`, function(err, rows) {
-        if (err) {
-            throw err;
-        } else {
-            let candidates = [];
-            //console.log("rows:")
-            //console.log(rows);
-            for (let i = 0; i < rows.length; ++i) {
-                candidates[i] = rows[i].candidate;
-            }
-            console.log("candidates:");
-            console.log(candidates);
-            console.log(candidates.length);
-            return candidates;
-        }
-    });
-}
-
-module.exports = {registerUser, loginUser, startElections, runForPresident, presidentList, vote, votesHistory, selectCandidates};
+module.exports = {
+    registerUser,
+    profile,
+    loginUser,
+    startElections,
+    runForPresident,
+    presidentList,
+    vote,
+    votesHistory
+};

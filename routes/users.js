@@ -12,8 +12,6 @@ db_connection.createConnection();
 db_connection.connectToDatabase();
 db_tables.createTablesInDatabase();
 
-// !: sa incerc sa fac loggedInUserInfo variabila globala sa vad daca merge
-
 router.get('/pop-up-message', (req, res) => {
     console.log("$$$ /pop-up-message");
     let actualMessage = req.flash('message') + ""; //make it string
@@ -30,57 +28,66 @@ router.get('/pop-up-message', (req, res) => {
     }
 });
 
-router.post('/register', function(req, res) {
-    console.log("$$$ /register")
+//async before a function => the function always returns a promise and allows await
+router.post('/register', async (req, res) => {
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
-    if (db_users.registerUser(name, email, password) == false) {
-        console.log("se intra in if");
+
+    //await only works inside the async function and it does wait for a promise
+    if (await db_users.registerUser(name, email, password) == false) {
         req.flash('message', 'The name or the email is already taken, please change it.');
         res.redirect('pop-up-message');
     } else {
-        console.log("se intra in else");
         req.flash('message', 'Account successfully created.');
         res.redirect('pop-up-message');
     }
 });
 
-router.post('/login', function (req, res) {
-    console.log("$$$ /login")
+router.post('/login', async function (req, res) {
+    console.log("$$$ /login");
     let email = req.body.searchEmail;
     let password = req.body.searchPassword;
-    if (db_users.loginUser(email, password) == false) {
+    if (await db_users.loginUser(email, password) == false) {
         req.flash('message', 'This account does not exist.');
         res.redirect('pop-up-message');
     } else {
-        req.session.loggedInUserInfo = rows[0]; //save the logged in user information with session
+        req.session.loggedInUserInfo = await db_users.loginUser(email, password);
+        res.redirect('profile'); //redirectionam in ruta router.get('/profile')
+    }
+});
 
-        // ?: daca o functie imi returneaza un sir de numere, cum pot sa apelez functia si sa extrag sirul de numere?
-        let candidates = selectCandidates();
-        console.log("candidates:");
-        console.log(candidates);
-        //console.log(candidates.length);
-        //console.log(candidates[0]);
+//if login success => redirect /profile
+router.get('/profile', async function (req, res) {
+    console.log("~~~ SE INTRA IN RUTA /profile");
+    let loggedInUserName = req.session.loggedInUserInfo.name;
+    console.log('await db_users.loginUser(email, password):');
+    console.log(await db_users.profile(loggedInUserName));
 
-        // !: sa fac chestia de 'Run for president' daca sa fie blocata sau nu direct din sql, adica sa nu trimit candidatii pe ejs si sa verific daca user-ul logat apare sau nu
-        
-        if (req.session.loggedInUserInfo.role != "admin") {
-            res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: selectCandidates(), popUpMessage: "userAcc"});
+    let isCandidate;
+    if (await db_users.profile(loggedInUserName) == undefined) {
+        console.log("NU II CURENT PARTICIPANT");
+        isCandidate = "no";
+    } else {
+        isCandidate = "yes";
+        console.log("II CURENT PARTICIPANT");
+    }
+
+    if (req.session.loggedInUserInfo.role != "admin") {
+            res.render('userAccount', {registeredUserInfo: loggedInUserName, isCandidate: isCandidate, popUpMessage: "userAcc"});
         } else {
-            res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: selectCandidates(), popUpMessage: "adminAcc"});
-        }
+            res.render('adminAccount', {registeredUserInfo: loggedInUserName, isCandidate: isCandidate, popUpMessage: "adminAcc"});
     }
 });
 
 //Admin
-router.post("/president/elections", function (req, res) {
+router.post("/president/elections", async function (req, res) {
     console.log("$$$ /president/elections")
     let startPresidency = req.body.startPresidency;
     let stopPresidency = req.body.stopPresidency;
     console.log(startPresidency);
     console.log(stopPresidency);
-    if (db_users.startElections(startPresidency, stopPresidency) == err) {
+    if (await db_users.startElections(startPresidency, stopPresidency) == false) {
         throw err;
     } else {
         console.log("inserted into elections");
@@ -89,12 +96,11 @@ router.post("/president/elections", function (req, res) {
     }
 });
 
-router.post("/president/run", function (req, res) {
+router.post("/president/run", async function (req, res) {
     console.log("$$$ /president/run")
     let loggedInUserName = req.session.loggedInUserInfo.name;
-    if (db_users.runForPresident(loggedInUserName) == err) {
-        throw err;
-    } else if (db_users.runForPresident(loggedInUserName) == false) {
+
+    if (await db_users.runForPresident(loggedInUserName) == false) {
         req.flash('message', 'The presidential elections have not started so you can not run for president.');
         res.redirect('../pop-up-message');
     } else {
@@ -141,5 +147,7 @@ router.get('/votes/history', function (req, res) {
     let userNameVoter = req.session.loggedInUserInfo.name;
     db_users.votesHistory(userNameVoter);
 });
+
+//helper functions
 
 module.exports = router;

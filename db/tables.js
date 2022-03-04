@@ -1,11 +1,8 @@
-console.log("!!!! db/connection.js");
-
 const db_connection = require('./connection.js');
 const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
 
 function createTablesInDatabase() {
-    console.log("!!!! createTablesInDatabase()");
     connection.query('CREATE TABLE IF NOT EXISTS users(' + 
     'id INT(255) UNSIGNED AUTO_INCREMENT PRIMARY KEY,' +
     'name VARCHAR(255) UNIQUE NOT NULL,' +
