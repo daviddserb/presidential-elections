@@ -35,4 +35,7 @@ function connectToDatabase() {
     });    
 }
 
-module.exports = {createConnection, connectToDatabase}
+module.exports = {
+    createConnection,
+    connectToDatabase
+};

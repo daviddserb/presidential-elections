@@ -8,9 +8,8 @@ function registerUser(name, email, password) {
     asynchronous operation and its resulting value */
     return new Promise((resolve, reject) => {
         connection.query("INSERT INTO users(name, email, password)" +
-        " VALUES('"+ name +"', '"+ email +"', '"+ password +"')", (err) => {
-            //(error, result, fields)
-            if (err) {
+        " VALUES('"+ name +"', '"+ email +"', '"+ password +"')", function (error, result, fields) {
+            if (error) {
                 resolve(false);
             } else {
                 resolve(true);
@@ -26,33 +25,35 @@ function registerUser(name, email, password) {
 function loginUser(email, password) {
     console.log("##### se intra in loginUser()");
     return new Promise(async resolve => {
-        await connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, async function(err, res) {
-            if (res[0] == undefined) {
-                console.log("SE INTRA IN PRIMUL IF DIN DB");
+        await connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, (err, res) => {
+            if (res[0] == undefined) { //sau if err == null, trebuie sa verific cum il pun pe null
+                console.log("db/loginUser if");
+                console.log("err:");
+                console.log(err);
                 resolve(false);
             } else {
-                console.log("SE INTRA IN PRIMUL ELSE DIN DB");
                 resolve(res[0]);
             }
         });
     });
 }
 
-function profile(loggedInUserName) {
+function profile(loggedInUserInfo) {
     return new Promise(async resolve => {
         connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
             if (err) {
-                console.log("@@@@@@@@@@@@@@@@@@@@");
+                console.log("db/profile err 1");
                 throw err;
             } else {
-                //let id = res[0].id;
-                //console.log(id);
-                //connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserName}' AND nr_election = ${res[0].id}`, function(err, res) {
-                connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserName}' AND '${res[0].start}' <= 'CURRENT_TIMESTAMP' AND 'CURRENT_TIMESTAMP' <= '${res[0].start}'`, function(err, res) {
+                //aici mai am de facut, ca daca s-au terminat electiile, butonul sa fie valabil, sa nu fie blocat, ca daca apasa pe el, sa ii dea pop up mesaj ca n-au inceput algerile
+                //connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserName}' AND '${res[0].start}' <= '${new Date()}' AND '${new Date()}' <= '${res[0].start}'`, function(err, res) {
+                connection.query(`SELECT * FROM candidates WHERE candidate = '${loggedInUserInfo.name}' AND nr_election = ${res[0].id}`, function(err, res) {
                     if (err) {
-                        console.log("#######################");
+                        console.log("db/profile err 2");
                         throw err;
                     } else {
+                        console.log("res[0]:");
+                        console.log(res[0]);
                         resolve(res[0]);
                     }
                 });
@@ -61,6 +62,7 @@ function profile(loggedInUserName) {
     });
 }
 
+//Admin
 function startElections(startPresidency, stopPresidency) {
     console.log("##### se intra in startElections()");
     return new Promise(async resolve => {
@@ -80,13 +82,17 @@ function runForPresident(loggedInUserName) {
     return new Promise(async resolve => {
         connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
             if (err) {
-                resolve(false);
+                console.log("err la runForPresident");
+                throw err;
             } else {
+                //NU AM VOIE SA FAC IF-URI 'SUPLIMENTARE' SI TREBUIE SA MODIFIC
+                //new Date() trebuie schimbat cu ...? now(), current_timestamp();
                 if (res[0].start <= new Date() && new Date() <= res[0].stop) {
                     connection.query("INSERT INTO candidates(nr_election, candidate)" +
                     "VALUES ('"+ res[0].id +"', '"+ loggedInUserName +"')", (err) => {
                         if (err) {
-                            resolve(false);
+                            console.log("err2 la runForPresident");
+                            throw err;
                         } else {
                             resolve(true);
                         }
@@ -99,121 +105,108 @@ function runForPresident(loggedInUserName) {
     });
 }
 
-function presidentList(loggedInUserName) {
-    console.log("##### se intra in presidentList()");
-    //select the start and stop date of the last election
-    connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, rows) {
-        if (err) {
-            return err;
-        } else {
-            console.log("new Date():")
-            console.log(new Date());
-            let lastPresidency = rows[0];
-            console.log("lastPresidency");
-            console.log(lastPresidency);
-            let lastPresidencyStart = lastPresidency.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-            let lastPresidencyStop = lastPresidency.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-            console.log("lastPresidency.start");
-            console.log(lastPresidencyStart);
-            console.log("lastPresidency.stop");
-            console.log(lastPresidencyStop);
-
-            //check if the election did end
-            if (new Date() > lastPresidency.stop) {
-                return false;
+//presidential list
+function calculateEachVote(lastElectionStart, lastElectionStop) {
+    console.log("##### se intra in calculateEachVote()");
+    return new Promise(async resolve => {
+         //calculate the votes
+         connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE '${lastElectionStart}' <= vote_date && vote_date <= '${lastElectionStop}' GROUP BY elected`, function (err, res) {
+            if (err) {
+                console.log("if (err) 3 calculateEachVote")
+                resolve("false");
             } else {
-                //select all candidates
-                connection.query(`SELECT candidate FROM candidates`, function(err, rows) {
-                    if (err) {
-                        return err;
-                    } else {
-                        console.log("\nrows: (candidates)");
-                        console.log(rows)
-
-                        //calculate votes
-                        connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE '${lastPresidencyStart}' <= vote_date && vote_date <= '${lastPresidencyStop}' GROUP BY elected`, function (err, result) {
-                            if (err) {
-                                return err;
-                            } else {
-                                return result;
-                            }
-                        });
-                    }
-                });
+                console.log("@@@@@@@@@@@@@@ res:");
+                console.log(res);
+                resolve(res);
             }
-        }
+        });
     });
 }
 
-function vote(userNameElected, userNameVoter) {
+function selectLastVote(userNameVoter) {
+    return new Promise(async resolve => {
+        connection.query(`SELECT vote_date FROM votes WHERE voter = '${userNameVoter}' ORDER BY id DESC LIMIT 1`, function(err, res) {
+            if (err) {
+                console.log("err de la vote");
+                resolve(false);
+            } else {
+                resolve(res[0]);
+            }
+        });
+    });
+}
+
+function saveVote(userNameVoter, userNameElected) {
     console.log("##### se intra in vote()");
-    connection.query(`SELECT vote_date FROM votes WHERE voter = '${userNameVoter}' ORDER BY id DESC LIMIT 1`, function(err, rows) {
-        if (err) {
-            throw err;
-        } else {
-            let presentDate = new Date(new Date() + "UTC");
-            let userNameVoter_LastTimeHeVoted;
-            let userNameVoter_LastTimeHeVoted_AfterADay;
-
-            if (rows[0] == undefined) { //when the user who wants to vote, never voted once before
-                userNameVoter_LastTimeHeVoted = "never";
+    return new Promise(async resolve => {
+        connection.query("INSERT INTO votes (voter, elected, vote_date)" +
+        "VALUES ('"+  userNameVoter +"', '"+ userNameElected +"', CURRENT_TIMESTAMP)", (err) => {
+            if (err) {
+                resolve(false);
             } else {
-                userNameVoter_LastTimeHeVoted = rows[0].vote_date;
-                userNameVoter_LastTimeHeVoted_AfterADay = userNameVoter_LastTimeHeVoted;
-                userNameVoter_LastTimeHeVoted_AfterADay.setDate(userNameVoter_LastTimeHeVoted_AfterADay.getDate() + 1)
-                
-                console.log("userNameVoter_LastTimeHeVoted_AfterADay:");
-                console.log(userNameVoter_LastTimeHeVoted_AfterADay);
-                console.log("presentDate:");
-                console.log(presentDate);
+                resolve(true);
             }
-
-            if (userNameVoter_LastTimeHeVoted == "never" || userNameVoter_LastTimeHeVoted_AfterADay < presentDate) {
-                connection.query("INSERT INTO votes (voter, elected, vote_date)" +
-                "VALUES ('"+  userNameVoter +"', '"+ userNameElected +"', CURRENT_TIMESTAMP)", (err) => {
-                    if (err) {
-                        throw err;
-                    } else {
-                        if (appRunOn == "localhost") {
-                            res.redirect(`http://localhost:3000/users/president/list`);
-                        } else {
-                            res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
-                        }
-                    }
-                });
-            } else {
-                req.flash('message', 'You can only vote once per day.');
-                res.redirect('../../pop-up-message');
-            }
-        }
+        });
     });
 }
 
-function votesHistory(userNameVoter) {
-    console.log("##### se intra in votesHistory()");
-    connection.query(`SELECT * FROM votes WHERE voter = '${userNameVoter}'`, function(err, rows) {
-        if (err) {
-            throw err;
-        } else {
-            let usersNameVoted = [], datesOfVote = [];
-            for (let i = 0; i < rows.length; ++i) {
-                usersNameVoted[i] = rows[i].elected;
-                datesOfVote[i] = rows[i].vote_date;
+function selectAllUserVotes(userNameVoter) {
+    console.log("##### se intra in selectAllUserVotes()");
+    return new Promise(async resolve => {
+        connection.query(`SELECT * FROM votes WHERE voter = '${userNameVoter}'`, function(err, res) {
+            if (err) {
+                resolve("false");
+            } else {
+                console.log("ressssssssssss");
+                console.log(res);
+                resolve(res);
             }
-            console.log("usersNameVoted");
-            console.log(usersNameVoted);
-            console.log("datesOfVote");
-            console.log(datesOfVote);
-            connection.query(`SELECT * FROM elections`, function(err, rows) {
-                if (err) {
-                    throw err;
-                } else {
-                    let allPresidencies = rows;
-                    console.log("allPresidencies");
-                    console.log(allPresidencies);
-                    res.render('votesHistory', {registeredUserName: userNameVoter, usersNameVoted: usersNameVoted, date : datesOfVote, allPresidencies: allPresidencies, appRunOn : appRunOn});                }
-            });
-        }
+        });
+    });
+}
+
+function selectAllElections() {
+    console.log("##### se intra in selectAllElections()");
+    return new Promise(async resolve => {
+        connection.query(`SELECT * FROM elections`, function(err, res) {
+            if (err) {
+                resolve(false);
+            } else {
+                resolve(res);
+            }
+        });
+    });
+}
+
+function selectLastElection() {
+    console.log("selectLastElection ->");
+    return new Promise(async resolve => {
+        connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
+            if (err) {
+                console.log("db/selectLastElection err 1")
+                resolve(false);
+            } else {
+                console.log("db/selectLastElection res[0]:");
+                console.log(res[0]);
+                resolve(res[0]);
+            }
+        });
+    });
+}
+
+function selectCurrentCandidates(lastElectionId) {
+    console.log("selectCurrentCandidates ->");
+    return new Promise(async resolve => {
+        connection.query(`SELECT candidate FROM candidates WHERE nr_election = ${lastElectionId}`, function(err, res) {
+            if (err) {
+                console.log("if (err) 2 selectCurrentCandidates")
+                resolve("false");
+            } else {
+                console.log("res:");
+                console.log(res);
+                resolve(res);
+            }
+        });
     });
 }
 
@@ -223,7 +216,11 @@ module.exports = {
     loginUser,
     startElections,
     runForPresident,
-    presidentList,
-    vote,
-    votesHistory
+    selectLastVote,
+    calculateEachVote,
+    saveVote,
+    selectLastElection,
+    selectCurrentCandidates,
+    selectAllUserVotes,
+    selectAllElections
 };

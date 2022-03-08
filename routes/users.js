@@ -17,14 +17,15 @@ router.get('/pop-up-message', (req, res) => {
     let actualMessage = req.flash('message') + ""; //make it string
     console.log('actualMessage:');
     console.log(actualMessage);
-    if (actualMessage == 'This account does not exist.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'Account successfully created.') {
+
+    if (actualMessage == 'Account successfully created.' || actualMessage == 'The name or the email is already taken, please change it.' || actualMessage == 'This account does not exist.') {
         res.render('homePage', {popUpMessage: actualMessage});
-    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
-        res.render('presidentList', {popUpMessage: actualMessage});
-    } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
-        res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, candidates: 0, popUpMessage: actualMessage});
     } else if (actualMessage == 'Presidency succesfully created.') {
         res.render('adminAccount', {registeredUserInfo: req.session.loggedInUserInfo, popUpMessage: actualMessage});
+    } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
+        res.render('userAccount', {registeredUserInfo: req.session.loggedInUserInfo, isCandidate: " ", popUpMessage: actualMessage});
+    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
+        res.render('presidentList', {popUpMessage: actualMessage});
     }
 });
 
@@ -60,12 +61,10 @@ router.post('/login', async function (req, res) {
 //if login success => redirect /profile
 router.get('/profile', async function (req, res) {
     console.log("~~~ SE INTRA IN RUTA /profile");
-    let loggedInUserName = req.session.loggedInUserInfo.name;
-    console.log('await db_users.loginUser(email, password):');
-    console.log(await db_users.profile(loggedInUserName));
+    let loggedInUserInfo = req.session.loggedInUserInfo;
 
     let isCandidate;
-    if (await db_users.profile(loggedInUserName) == undefined) {
+    if (await db_users.profile(loggedInUserInfo) == undefined) {
         console.log("NU II CURENT PARTICIPANT");
         isCandidate = "no";
     } else {
@@ -74,9 +73,9 @@ router.get('/profile', async function (req, res) {
     }
 
     if (req.session.loggedInUserInfo.role != "admin") {
-            res.render('userAccount', {registeredUserInfo: loggedInUserName, isCandidate: isCandidate, popUpMessage: "userAcc"});
+            res.render('userAccount', {registeredUserInfo: loggedInUserInfo, isCandidate: isCandidate, popUpMessage: "userAcc"});
         } else {
-            res.render('adminAccount', {registeredUserInfo: loggedInUserName, isCandidate: isCandidate, popUpMessage: "adminAcc"});
+            res.render('adminAccount', {registeredUserInfo: loggedInUserInfo, popUpMessage: "adminAcc"});
     }
 });
 
@@ -112,42 +111,130 @@ router.post("/president/run", async function (req, res) {
     }
 });
 
-router.get('/president/list', function (req, res) {
+router.get('/president/list', async function (req, res) {
     console.log("$$$ /president/list/")
-    let loggedInUserName = req.session.loggedInUserInfo.name;
-    if (db_users.presidentList(loggedInUserName) == err) {
-        throw err;
-    } else if (db_users.presidentList(loggedInUserName) == false) {
-        console.log("The presidential elections have not started so there are no presidential candidates.");
-        req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
-        res.redirect('../pop-up-message');
+    if (await db_users.selectLastElection() == false) {
+        console.log("NU AVEM NICIO ELECTIE...?")
     } else {
-        console.log("result: (electeds)");
-        console.log(result);
-        res.render('presidentList', {loggedInUserName: loggedInUserName, candidates: rows, electeds : result, popUpMessage: " "});
+        console.log("new Date():")
+        console.log(new Date());
+
+        let lastElection = await db_users.selectLastElection();
+        console.log("lastElection");
+        console.log(lastElection);
+        let lastElectionId = lastElection.id;
+        console.log("lastElectionId:");
+        console.log(lastElectionId);
+        let lastElectionStart = lastElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+        let lastElectionStop = lastElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+        console.log("lastElection.start");
+        console.log(lastElectionStart);
+        console.log("lastElection.stop");
+        console.log(lastElectionStop);
+
+        if (new Date() > lastElection.stop) {
+            console.log("The presidential elections have not started so there are no presidential candidates.");
+            req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
+            res.redirect('../pop-up-message');
+        } else {
+            //"false" in string pt. ca daca se returneaza un sir gol comparatia este adevarata
+            if (await db_users.selectCurrentCandidates(lastElectionId) == "false") {
+                console.log("???...???")
+            } else {
+                let allCurentCandidates = await db_users.selectCurrentCandidates(lastElectionId);
+                console.log('allCurentCandidates:');
+                console.log(allCurentCandidates);
+
+                //"false" in string pt. ca daca se returneaza un sir gol comparatia este adevarata
+                if (await db_users.calculateEachVote(lastElectionStart, lastElectionStop) == "false") {
+                    console.log("habar n-am aici");
+                } else {
+                    console.log("MI SE INTRA IN RANDAREEEEEE");
+                    let electedsAndVotes = await db_users.calculateEachVote(lastElectionStart, lastElectionStop);
+                    res.render('presidentList', {loggedInUserInfo: req.session.loggedInUserInfo.name, candidates: allCurentCandidates, electeds : electedsAndVotes, popUpMessage: " "});
+                }
+            }
+        }
     }
 });
 
-router.post("/user/:id/vote", function (req, res) {
+router.post("/user/:id/vote", async function (req, res) {
     console.log("$$$ /user/vote");
     let userNameElected = req.params.id;
     let userNameVoter = req.session.loggedInUserInfo.name;
     console.log("userNameWhoWasVoted= " + userNameElected);
     console.log("userNameVoter= " + userNameVoter);
+
     if (userNameElected == userNameVoter) {
         req.flash('message', 'You can not vote yourself.');
         res.redirect('../../pop-up-message');
     } else {
-        db_users.vote(userNameElected, userNameVoter);
+        if (await db_users.selectLastVote(userNameVoter) == false) {
+            console.log("if 1 de la vote");
+        } else {
+            let lastVoteDate = await db_users.selectLastVote(userNameVoter);
+            console.log("lastVoteDate:");
+            console.log(lastVoteDate);
+            let presentDate = new Date(new Date() + "UTC");
+            let userNameVoter_LastTimeHeVoted, userNameVoter_LastTimeHeVoted_AfterADay;
+
+            if (lastVoteDate == undefined) { //when the user who wants to vote, never voted once before
+                userNameVoter_LastTimeHeVoted = "never";
+            } else {
+                userNameVoter_LastTimeHeVoted = lastVoteDate.vote_date;
+                userNameVoter_LastTimeHeVoted_AfterADay = userNameVoter_LastTimeHeVoted;
+                userNameVoter_LastTimeHeVoted_AfterADay.setDate(userNameVoter_LastTimeHeVoted_AfterADay.getDate() + 1)
+                
+                console.log("userNameVoter_LastTimeHeVoted_AfterADay:");
+                console.log(userNameVoter_LastTimeHeVoted_AfterADay);
+                console.log("presentDate:");
+                console.log(presentDate);
+            }
+            
+            //if he never voted or if it already passed 1 day since the last vote => he can vote
+            if (userNameVoter_LastTimeHeVoted == "never" || userNameVoter_LastTimeHeVoted_AfterADay < presentDate) {
+                if (await db_users.saveVote(userNameVoter, userNameElected) == false) {
+                    console.log("nu a putut fi salvat votul, dar e imposibil");
+                } else {
+                    if (appRunOn == "localhost") {
+                        res.redirect(`http://localhost:3000/users/president/list`);
+                    } else {
+                        res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
+                    }
+                }
+            } else {
+                req.flash('message', 'You can only vote once per day.');
+                res.redirect('../../pop-up-message');
+            }
+        }
     }
 });
 
-router.get('/votes/history', function (req, res) {
+router.get('/votes/history', async function (req, res) {
     console.log("$$$ /votes/history");
     let userNameVoter = req.session.loggedInUserInfo.name;
-    db_users.votesHistory(userNameVoter);
+    if (await db_users.selectAllUserVotes(userNameVoter) == "false") {
+        console.log("nush...");
+    } else {
+        let allInfoVotes = await db_users.selectAllUserVotes(userNameVoter);
+        let usersNameVoted = [], datesOfVote = [];
+        for (let i = 0; i < allInfoVotes.length; ++i) {
+            usersNameVoted[i] = allInfoVotes[i].elected;
+            datesOfVote[i] = allInfoVotes[i].vote_date;
+        }
+        console.log("usersNameVoted");
+        console.log(usersNameVoted);
+        console.log("datesOfVote");
+        console.log(datesOfVote);
+        if (await db_users.selectAllElections() == false) {
+            console.log("nu ii nicio electie");
+        } else {
+            let allElections = await db_users.selectAllElections();
+            console.log("allElections");
+            console.log(allElections);
+            res.render('votesHistory', {registeredUserName : userNameVoter, usersNameVoted : usersNameVoted, date : datesOfVote, allElections : allElections, appRunOn : appRunOn});    
+        }
+    }
 });
-
-//helper functions
 
 module.exports = router;
