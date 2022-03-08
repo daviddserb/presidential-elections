@@ -13,17 +13,21 @@
                             <div class="card" style="border-radius: 15px;">
 
                                 <div class="card-body p-5">
-                                    <% for (let i = 0; i < allElections.length; ++i) { %>
-                                        <ul>
-                                            <%= i + 1 %>. <%= allElections[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allElections[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
-                                            <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
-                                                <ul>
-                                                    <% if (allElections[i].start < date[j] && date[j] < allElections[i].stop) { %>
-                                                        <%= ++cnt %>. <%= usersNameVoted[j] %>
-                                                    <% } %>
-                                                </ul>
-                                            <% } %>
-                                        </ul>
+                                    <% if (allElections.length == 0) { %>
+                                        There are no running elections.
+                                    <% } else { %>
+                                        <% for (let i = 0; i < allElections.length; ++i) { %>
+                                            <ul>
+                                                <%= i + 1 %>. <%= allElections[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allElections[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
+                                                <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
+                                                    <ul>
+                                                        <% if (allElections[i].start < date[j] && date[j] < allElections[i].stop) { %>
+                                                            <%= ++cnt %>. <%= usersNameVoted[j] %>
+                                                        <% } %>
+                                                    </ul>
+                                                <% } %>
+                                            </ul>
+                                        <% } %>
                                     <% } %>
                                 </div>
                             </div>
