@@ -19,27 +19,16 @@
                             <div class="card" style="border-radius: 15px;">
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
                                 
-                                <% if (candidates.length == 0) { %>
+                                <% if (isCandidate == "no") { %>
                                     <form action="/users/president/run" method="POST">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
                                         </div>
                                     </form>
                                 <% } else { %>
-                                    <% for (let i = 0; i < candidates.length; ++i) { %>
-                                        <% if (registeredUserInfo.name == candidates[i].candidate) { %>
-                                            <div class="d-flex justify-content-center">
-                                                <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                            </div>
-                                            <% break %>
-                                        <% } else if (i == candidates.length - 1) { %>
-                                            <form action="/users/president/run" method="POST">
-                                                <div class="d-flex justify-content-center">
-                                                    <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                                </div>
-                                            </form>
-                                        <% } %>
-                                    <% } %>
+                                    <div class="d-flex justify-content-center">
+                                        <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                    </div>
                                 <% } %>
 
                                 <div class="card-body p-5">

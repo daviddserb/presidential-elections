@@ -13,12 +13,12 @@
                             <div class="card" style="border-radius: 15px;">
 
                                 <div class="card-body p-5">
-                                    <% for (let i = 0; i < allPresidencies.length; ++i) { %>
+                                    <% for (let i = 0; i < allElections.length; ++i) { %>
                                         <ul>
-                                            <%= i + 1 %>. <%= allPresidencies[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allPresidencies[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
+                                            <%= i + 1 %>. <%= allElections[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allElections[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
                                             <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
                                                 <ul>
-                                                    <% if (allPresidencies[i].start < date[j] && date[j] < allPresidencies[i].stop) { %>
+                                                    <% if (allElections[i].start < date[j] && date[j] < allElections[i].stop) { %>
                                                         <%= ++cnt %>. <%= usersNameVoted[j] %>
                                                     <% } %>
                                                 </ul>
