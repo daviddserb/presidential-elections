@@ -62,13 +62,12 @@ router.get('/profile', async (req, res) => {
     let loggedInUserInfo = req.session.loggedInUserInfo;
 
     let currentRunningElection = await db_users.checkIfRunningElection();
+    let currentRunningCandidate = await db_users.checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection);
     let isCandidate = "no"; //suppose our logged in user is not a candidate
 
-    //if there is an election running => we still need to check if the logged in user is a candidate or not
-    if (currentRunningElection != undefined) {
-        if (await db_users.checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection) != undefined) {
-            isCandidate = "yes";
-        }
+    //if there is an election running => still need to check if the logged in user is a candidate or not
+    if (currentRunningElection != undefined && currentRunningCandidate != undefined) {
+        isCandidate = "yes";
     }
 
     if (req.session.loggedInUserInfo.role != "admin") {
@@ -83,7 +82,7 @@ router.post("/president/elections", async (req, res) => {
     let startPresidency = req.body.startPresidency;
     let stopPresidency = req.body.stopPresidency;
 
-    if (await db_users.startElections(startPresidency, stopPresidency) != false) {
+    if (await db_users.startElections(startPresidency, stopPresidency) == true) {
         req.flash('message', 'Presidency succesfully created.');
         res.redirect('../pop-up-message');
     }
@@ -112,32 +111,22 @@ router.post("/president/run", async (req, res) => {
 router.get('/president/list', async (req, res) => {
     console.log("$$$ /president/list/")
     let runningElection = await db_users.checkIfRunningElection();
-    console.log("runningElection:");
-    console.log(runningElection);
 
     if (runningElection == undefined) {
         req.flash('message', 'The presidential elections have not started so there are no presidential candidates.');
         res.redirect('../pop-up-message');
     } else {
+        let allCandidates = await db_users.selectCandidates(runningElection);
+
         let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
         let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-        console.log("runningElectionStart");
+        console.log("runningElectionStart:");
         console.log(runningElectionStart);
-        console.log("runningElectionStop");
+        console.log("runningElectionStop:");
         console.log(runningElectionStop);
 
-        let allCandidates = await db_users.selectCandidates(runningElection);
-        console.log('allCandidates:');
-        console.log(allCandidates);
-
-        //false in string because an empty array is considered equal to false
-        if (allCandidates != "false") {
-            if (await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop) != "false") {
-                console.log("MI SE INTRA IN RANDAREEEEEE");
-                let electedsAndVotes = await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop);
-                res.render('presidentList', {loggedInUserInfo : req.session.loggedInUserInfo.name, candidates : allCandidates, electeds : electedsAndVotes, popUpMessage : " "});
-            }
-        }
+        let electedsAndVotes = await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop);
+        res.render('presidentList', {loggedInUserInfo : req.session.loggedInUserInfo.name, candidates : allCandidates, electeds : electedsAndVotes, popUpMessage : " "});
     }
 });
 
@@ -153,10 +142,7 @@ router.post("/user/:id/vote", async (req, res) => {
         res.redirect('../../pop-up-message');
     } else {
         let lastVoteDate = await db_users.hisLastVote(userNameVoter);
-        console.log("lastVoteDate:");
-        console.log(lastVoteDate);
         if (lastVoteDate != false) {
-
             let presentDate = new Date(new Date() + "UTC");
             let userNameVoter_LastTimeHeVoted, userNameVoter_LastTimeHeVoted_AfterADay;
 
@@ -175,7 +161,7 @@ router.post("/user/:id/vote", async (req, res) => {
             
             //if he never voted before or if it already passed 1 day since the last vote => he can vote
             if (userNameVoter_LastTimeHeVoted == "never" || userNameVoter_LastTimeHeVoted_AfterADay < presentDate) {
-                if (await db_users.saveVote(userNameVoter, userNameElected) != false) {
+                if (await db_users.saveVote(userNameVoter, userNameElected) == true) {
                     if (appRunOn == "localhost") {
                         res.redirect(`http://localhost:3000/users/president/list`);
                     } else {
@@ -194,13 +180,12 @@ router.get('/votes/history', async (req, res) => {
     console.log("$$$ /votes/history");
     let userNameVoter = req.session.loggedInUserInfo.name;
 
-    let allInfoVotes = await db_users.allHisVotes(userNameVoter);
-    //false in string because an empty array is considered equal to false
-    if (allInfoVotes != "false") {
+    let allHisVotes = await db_users.allHisVotes(userNameVoter);
+    if (allHisVotes.length >= 0) {
         let usersNameVoted = [], datesOfVote = [];
-        for (let i = 0; i < allInfoVotes.length; ++i) {
-            usersNameVoted[i] = allInfoVotes[i].elected;
-            datesOfVote[i] = allInfoVotes[i].vote_date;
+        for (let i = 0; i < allHisVotes.length; ++i) {
+            usersNameVoted[i] = allHisVotes[i].elected;
+            datesOfVote[i] = allHisVotes[i].vote_date;
         }
         console.log("usersNameVoted");
         console.log(usersNameVoted);
@@ -208,8 +193,6 @@ router.get('/votes/history', async (req, res) => {
         console.log(datesOfVote);
 
         let allElections = await db_users.selectAllElections();
-        console.log("allElections");
-        console.log(allElections);
         res.render('votesHistory', {registeredUserName : userNameVoter, usersNameVoted : usersNameVoted, date : datesOfVote, allElections : allElections, appRunOn : appRunOn});    
     }
 });
