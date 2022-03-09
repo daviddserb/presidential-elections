@@ -11,7 +11,7 @@ db_connection.createConnection();
 db_connection.connectToDatabase();
 db_tables.createTablesInDatabase();
 
-router.get('/pop-up-message', (req, res) => {
+router.get('/pop-up-message', async (req, res) => {
     console.log("$$$ /pop-up-message");
     let actualMessage = req.flash('message') + ""; //make it string
     console.log('actualMessage:');
@@ -24,7 +24,11 @@ router.get('/pop-up-message', (req, res) => {
     } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
         res.render('userAccount', {registeredUserInfo : req.session.loggedInUserInfo, isCandidate: " ", popUpMessage : actualMessage});
     } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
-        res.render('presidentList', {popUpMessage : actualMessage});
+        //res.render('presidentList', {popUpMessage : actualMessage});
+        let runningElection = await db_users.checkIfRunningElection();
+        let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+        let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+        res.render('presidentList', {candidates : await db_users.selectCandidates(runningElection), electeds : await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop), popUpMessage : actualMessage});
     }
 });
 
@@ -71,9 +75,9 @@ router.get('/profile', async (req, res) => {
     }
 
     if (req.session.loggedInUserInfo.role != "admin") {
-            res.render('userAccount', {registeredUserInfo: loggedInUserInfo, isCandidate: isCandidate, popUpMessage: "userAcc"});
+            res.render('userAccount', {registeredUserInfo : loggedInUserInfo, isCandidate : isCandidate, popUpMessage : "userAcc"});
         } else {
-            res.render('adminAccount', {registeredUserInfo: loggedInUserInfo, popUpMessage: "adminAcc"});
+            res.render('adminAccount', {registeredUserInfo : loggedInUserInfo, popUpMessage : "adminAcc"});
     }
 });
 
@@ -126,7 +130,7 @@ router.get('/president/list', async (req, res) => {
         console.log(runningElectionStop);
 
         let electedsAndVotes = await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop);
-        res.render('presidentList', {loggedInUserInfo : req.session.loggedInUserInfo.name, candidates : allCandidates, electeds : electedsAndVotes, popUpMessage : " "});
+        res.render('presidentList', {candidates : allCandidates, electeds : electedsAndVotes, popUpMessage : " "});
     }
 });
 
