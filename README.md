@@ -1,6 +1,7 @@
 # PresidentialElections
 
 Presidential Elections it’s a project about elections and voting. You need to make an account in order to use it.
+
 If the admin started the elections, you can:
 *1. Run for president.
 
