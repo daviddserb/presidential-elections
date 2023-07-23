@@ -4,12 +4,11 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-//for pop-up messages
-//cookie-session stores the data on the client VS express-session stores data on the server
+//Pop-up messages: cookie-session stores the data on the client VS express-session stores data on the server
 var cookieSession = require('cookie-session');
 var flash = require('connect-flash');
 
-var expressSession = require('express-session'); //to get the logged in user information
+var expressSession = require('express-session'); //to get the logged-in user information
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -29,9 +28,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 //for pop-up messages
 app.use(cookieSession({
     secret: 'secret-cookieSession',
-    saveUninitialized: false,
+    saveUninitialized: true,
     resave: false
   }));
+
 app.use(flash());
 
 //to get the logged in user information
