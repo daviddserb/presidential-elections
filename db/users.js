@@ -21,11 +21,12 @@ function loginUser(email, password) {
     console.log("##### se intra in loginUser()");
     return new Promise(async resolve => {
         await connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, (err, res) => {
-            //??? Intrebare1: in loc de err != null pot sa pun res[0] == undefined, conteaza pe care o pun, adica sugestiv?
             if (err != null) { 
+                console.log("contul nu exista");
                 resolve(false);
             } else {
                 resolve(res[0]);
+                console.log("contul exista");
             }
         });
     });
@@ -47,12 +48,13 @@ function startElections(startPresidency, stopPresidency) {
 
 function checkIfRunningElection() {
     return new Promise(async resolve => {
-        connection.query(`SELECT * FROM elections WHERE (CURRENT_TIMESTAMP BETWEEN start AND stop) ORDER BY id DESC LIMIT 1`, function(err, res) {
+        //connection.query(`SELECT * FROM elections WHERE (CURRENT_TIMESTAMP BETWEEN start AND stop) ORDER BY id DESC LIMIT 1`, function(err, res) {
+        connection.query(`SELECT * FROM elections ORDER BY id DESC LIMIT 1`, function(err, res) {
             if (err) {
-                console.log("db/checkIfRunningElection err 1 (NU SE INTRA AICI NICI CAND NU SUNT ALEGERI CURENTE)");
                 throw err;
             } else {
                 console.log("avem electie?:");
+                console.log(res);
                 console.log(res[0]);
                 resolve(res[0]);
             }
@@ -64,10 +66,9 @@ function checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection) {
     return new Promise(async resolve => {
         connection.query(`SELECT * FROM candidates WHERE (candidate = '${loggedInUserInfo.name}' AND nr_election = ${currentRunningElection.id})`, function(err, res) {
             if (err) {
-                console.log("db/checkIfCurrentCandidate err 1 (NU SE INTRA AICI NICI CAND NU ARE PE CINE ALEGE, ADICA NU CANDIDEAZA)");
                 throw err;
             } else {
-                console.log("este candidat?:");
+                console.log("este curent candidat?:");
                 console.log(res[0]);
                 resolve(res[0]);
             }

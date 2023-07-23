@@ -23,8 +23,7 @@ router.get('/pop-up-message', async (req, res) => {
         res.render('adminAccount', {registeredUserInfo : req.session.loggedInUserInfo, popUpMessage : actualMessage});
     } else if (actualMessage == 'The presidential elections have not started so you can not run for president.' || actualMessage == 'The presidential elections have not started so there are no presidential candidates.') {
         res.render('userAccount', {registeredUserInfo : req.session.loggedInUserInfo, isCandidate: " ", popUpMessage : actualMessage});
-    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.'){
-        //res.render('presidentList', {popUpMessage : actualMessage});
+    } else if (actualMessage == 'You can only vote once per day.' || actualMessage == 'You can not vote yourself.') {
         let runningElection = await db_users.checkIfRunningElection();
         let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
         let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
@@ -53,25 +52,28 @@ router.post('/login', async (req, res) => {
     let password = req.body.searchPassword;
 
     if (await db_users.loginUser(email, password) == false) {
+        console.log("pop up msg cont nu exista")
         req.flash('message', 'This account does not exist.');
         res.redirect('pop-up-message');
     } else {
+        console.log('se redirectioneaza spre ruta profile')
         req.session.loggedInUserInfo = await db_users.loginUser(email, password);
-        res.redirect('profile'); //redirectionam in ruta router.get('/profile')
+        res.redirect('profile'); //if login success => redirect /profile to load user page and functionalities
     }
 });
 
-//if login success => redirect /profile
 router.get('/profile', async (req, res) => {
+    console.log("se intra in ruta profile");
     let loggedInUserInfo = req.session.loggedInUserInfo;
-
-    let currentRunningElection = await db_users.checkIfRunningElection();
-    let currentRunningCandidate = await db_users.checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection);
     let isCandidate = "no"; //suppose our logged in user is not a candidate
 
+    let currentRunningElection = await db_users.checkIfRunningElection();
     //if there is an election running => still need to check if the logged in user is a candidate or not
-    if (currentRunningElection != undefined && currentRunningCandidate != undefined) {
-        isCandidate = "yes";
+    if (currentRunningElection != undefined) {
+        let currentRunningCandidate = await db_users.checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection);
+        if (currentRunningCandidate != undefined) {
+            isCandidate = "yes";
+        }
     }
 
     if (req.session.loggedInUserInfo.role != "admin") {

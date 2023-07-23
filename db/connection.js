@@ -11,7 +11,6 @@ function createConnection() {
         appRunOn = "heroku";
     } else {
         //Create connection to MySQL
-        //connection = sync_sql.mysql({
         connection = mysql.createConnection({
             host: "localhost",
             user: "root",
