@@ -11,26 +11,31 @@
                     <div class="row d-flex justify-content-center align-items-center h-100">
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
                             <div class="card" style="border-radius: 15px;">
-
+                                <h2 class="text-uppercase text-center"> <%= registeredUserName %> </h2>
                                 <div class="card-body p-5">
                                     <% if (allElections.length == 0) { %>
-                                        There are no running elections.
+                                        There hasn't been a single election...
                                     <% } else { %>
                                         <% for (let i = 0; i < allElections.length; ++i) { %>
                                             <ul>
                                                 <%= i + 1 %>. <%= allElections[i].start.toISOString().replace(/T/, ' ').replace(/\..+/, '') %> ~ <%= allElections[i].stop.toISOString().replace(/T/, ' ').replace(/\..+/, '') %>
+                                                
                                                 <% for (let j = 0, cnt = 0; j < usersNameVoted.length; ++j) { %>
                                                     <ul>
                                                         <% if (allElections[i].start < date[j] && date[j] < allElections[i].stop) { %>
                                                             <%= ++cnt %>. <%= usersNameVoted[j] %>
                                                         <% } %>
                                                     </ul>
+                                                    <% if (cnt === 0) { %>
+                                                        <p> You didn't vote in this election. </p>
+                                                    <% } %>
                                                 <% } %>
                                             </ul>
                                         <% } %>
                                     <% } %>
                                 </div>
                             </div>
+
                             <% if (appRunOn == "localhost") { %>
                                 <a class="btn btn-success btn-block gradient-custom-4 text-body" href="http://localhost:3000">Home page</a>
                             <% } else { %>

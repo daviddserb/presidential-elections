@@ -10,7 +10,7 @@
                 <div class="container h-100">
                     <div class="row d-flex justify-content-center align-items-center h-100">
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
-                            <% if (popUpMessage == 'The presidential elections have not started so you can not run for president.' || popUpMessage == 'The presidential elections have not started so there are no presidential candidates.') { %>
+                            <% if (popUpMessage == 'No election running right now!') { %>
                                 <div class="alert alert-danger">
                                     <%= popUpMessage %>
                                 </div>
@@ -18,27 +18,33 @@
 
                             <div class="card" style="border-radius: 15px;">
                                 <h2 class="text-uppercase text-center mb-5"> <%= registeredUserInfo.name %> </h2>
-                                
-                                <% if (isCandidate == "no") { %>
-                                    <form action="/users/president/run" method="POST">
-                                        <div class="d-flex justify-content-center">
-                                            <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
-                                        </div>
-                                    </form>
-                                <% } else { %>
+                                <% if (isElection == false) { %>
                                     <div class="d-flex justify-content-center">
                                         <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
                                     </div>
-                                <% } %>
-
-                                <div class="card-body p-5">
+                                    <div class="d-flex justify-content-center">
+                                        <input disabled type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+                                    </div>
+                                <% } else { %>
+                                    <% if (isCandidate == false) { %>
+                                        <form action="/users/president/run" method="POST">
+                                            <div class="d-flex justify-content-center">
+                                                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                            </div>
+                                        </form>
+                                    <% } else { %>
+                                        <div class="d-flex justify-content-center">
+                                            <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                                        </div>
+                                    <% } %>
                                     <form action="/users/president/list" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
                                         </div>
                                     </form>
-                                    <br><br>
-                                    
+                                <% } %>
+
+                                <div class="card-body p-5">
                                     <form action="/users/votes/history" method="GET">
                                         <div class="d-flex justify-content-center">
                                             <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Your vote history">
