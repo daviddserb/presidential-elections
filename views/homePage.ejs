@@ -10,11 +10,11 @@
                 <div class="container h-100">
                     <div class="row d-flex justify-content-center align-items-center h-100">
                         <div class="col-12 col-md-9 col-lg-7 col-xl-6">
-                            <% if (popUpMessage == "The name or the email is already taken, please change it." || popUpMessage == "This account does not exist.") { %>
+                            <% if (popUpMessage == "The name and/or the email is already taken, please change it!" || popUpMessage == "User not found!") { %>
                                 <div class="alert alert-danger">
                                     <%= popUpMessage %>
                                 </div>
-                            <% } else if (popUpMessage == "Account successfully created.") { %>
+                            <% } else if (popUpMessage == "Account successfully created!") { %>
                                 <div class="alert alert-success">
                                     <%= popUpMessage %>
                                 </div>

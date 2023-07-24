@@ -17,77 +17,72 @@ router.get('/pop-up-message', async (req, res) => {
     let messages = req.flash('message');
     console.log("messages: ", messages);
     // ??? BUG: sometimes req.flash('message') saves a message for multiple times, so I just select the last message which is the good one (work-around).
-    let lastMessage = messages[messages.length - 1] + "";
+    let lastMessage = messages[messages.length - 1] + '';
     console.log('lastMessage:', lastMessage);
 
-    if (lastMessage == 'Account successfully created.' || lastMessage == 'The name or the email is already taken, please change it.' || lastMessage == 'This account does not exist.') {
+    if (lastMessage == 'Account successfully created!' || lastMessage == 'The name and/or the email is already taken, please change it!' || lastMessage == 'User not found!') {
+        console.log("pop-up message pe home");
         res.render('homePage', {popUpMessage : lastMessage});
     } else if (lastMessage == 'Presidency succesfully created.') {
         res.render('adminAccount', {registeredUserInfo : req.session.loggedInUserInfo, popUpMessage : lastMessage});
     } else if (lastMessage == 'The presidential elections have not started so you can not run for president.' || lastMessage == 'The presidential elections have not started so there are no presidential candidates.') {
         res.render('userAccount', {registeredUserInfo : req.session.loggedInUserInfo, isCandidate: " ", popUpMessage : lastMessage});
-    } else if (lastMessage == 'You can only vote once per day.' || lastMessage == 'You can not vote yourself.') {
+    } else if (lastMessage == 'You can only vote once per day.' || lastMessage == 'You can not vote yourself!') {
         let runningElection = await db_users.checkIfRunningElection();
         let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
         let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
         res.render('presidentList', {candidates : await db_users.selectCandidates(runningElection), electeds : await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop), popUpMessage : actualMessage});
+    } else {
+        console.log("nu s-a intrat in niciun mesaj");
     }
 });
 
-//async before a function => the function always returns a promise and allows await
 router.post('/register', async function (req, res) {
+    console.log("/register");
     let name = req.body.inputName;
     let email = req.body.inputEmail;
     let password = req.body.inputPassword;
 
-    //await only works inside the async function and it does wait for a promise
-    if (await db_users.registerUser(name, email, password) == false) {
-        req.flash('message', 'The name or the email is already taken, please change it.');
-        res.redirect('pop-up-message');
-    } else {
-        req.flash('message', 'Account successfully created.');
+    try {
+        const promiseResult = await db_users.registerUser(name, email, password);
+        console.log("promiseResult:", promiseResult);
+        if (promiseResult == "Account successfully created!") {
+            req.flash('message', `${promiseResult}`);
+            res.redirect('pop-up-message');
+        } else {
+            console.log("??? Erori de pe server");
+        }
+    } catch (error) {
+        console.log("@@@");
+        req.flash('message', `${error}`);
         res.redirect('pop-up-message');
     }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', (req, res) => {
     console.log("/login");
     let email = req.body.searchEmail;
     let password = req.body.searchPassword;
 
-    //BEFORE:
-    // if (await db_users.loginUser(email, password) == false) {
-    //     req.flash('message', 'This account does not exist.');
-
-    //     res.redirect('pop-up-message');
-    // } else {
-    //     // req = HTTP request facut de client (web browser) spre server (Node.js).
-    //     // Salvam datele in-memory pe server si astfel putem accesa datele la diferite HTTP requests.
-    //     req.session.loggedInUserInfo = await db_users.loginUser(email, password);
-
-    //     res.redirect('profile'); //if login success => redirect /profile to load user page and functionalities
-    // }
-
-    //AFTER:
-    console.log("before promise");
-    await db_users.loginUser(email, password)
+    // Call promises with: then catch or async await and try catch.
+    db_users.loginUser(email, password)
     .then((result) => {
         console.log("then:");
         console.log("result:", result);
+        
         // req = HTTP request facut de client (web browser) spre server (Node.js).
         // Salvam datele in-memory pe server si astfel putem accesa datele la diferite HTTP requests.
         req.session.loggedInUserInfo = result;
+
         res.redirect('profile');
     })
     .catch((error) => {
         console.log("catch:");
         console.error("error:", error);
-        req.flash('message', 'This account does not exist.');
-        //req.flash('message', '${error}');
+
+        req.flash('message', `${error}`);
         res.redirect('pop-up-message');
-        //res.status(404).send("User does not exist.");
     });
-    console.log("after promise");
 });
 
 router.get('/profile', async (req, res) => {
@@ -173,7 +168,7 @@ router.post("/user/:id/vote", async (req, res) => {
     console.log("userNameVoter= " + userNameVoter);
 
     if (userNameElected == userNameVoter) {
-        req.flash('message', 'You can not vote yourself.');
+        req.flash('message', 'You can not vote yourself!');
         res.redirect('../../pop-up-message');
     } else {
         let lastVoteDate = await db_users.hisLastVote(userNameVoter);

@@ -3,15 +3,26 @@ const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
 
 function registerUser(name, email, password) {
-    /* Promise is an object who represents the eventual completion (or failure) of an 
-    asynchronous operation and its resulting value */
-    return new Promise((resolve, reject) => {
-        connection.query("INSERT INTO users(name, email, password)" +
-        " VALUES('"+ name +"', '"+ email +"', '"+ password +"')", function (error, result, fields) {
+    console.log("registerUser()");
+    /* Promise = object who represents the completion or failure of an async operation and its resulting value. */
+    return new Promise(async (resolve, reject) => {
+        await connection.query(
+            "INSERT INTO users(name, email, password) VALUES(?, ?, ?)",
+            [name, email, password],
+            function (error, result) {
             if (error) {
-                resolve(false);
+                console.log("error:", error);
+                if (error.code === "ER_DUP_ENTRY") {
+                    console.log("Name si/sau Email sunt deja in DB");
+                    reject("The name and/or the email is already taken, please change it!");
+                } else {
+                    console.log("??? Erori pe server");
+                    reject("An error occurred while creating the account!");
+                }
             } else {
-                resolve(true);
+                console.log("S-a creat contul");
+                console.log("result:", result);
+                resolve("Account successfully created!");
             }
         });
     });
@@ -19,31 +30,18 @@ function registerUser(name, email, password) {
 
 function loginUser(email, password) {
     console.log("loginUser()");
-    //BEFORE:
-    // return new Promise(async resolve => {
-    //     await connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, (err, res) => {
-    //         console.log("err:", err);
-    //         console.log("res:", res);
-    //         if (res.length === 0) { 
-    //             console.log("Contul nu exista.");
-    //             resolve(false);
-    //         } else {
-    //             console.log("Contul exista.");
-    //             resolve(res[0]);
-    //         }
-    //     });
-    // });
-    // AFTER:
-    return new Promise((resolve, reject) => {
-        // connection.query returns a Promise
-        connection.query(`SELECT * FROM users WHERE email = '${email}' && password = '${password}'`, (error, result) => {
+    return new Promise(async (resolve, reject) => {
+        // BEFORE:
+        // `SELECT * FROM users WHERE email = '${email}' && password = '${password}'`
+        // AFTER (Prevent SQL Injection with Parameterized Queries):
+        await connection.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password], (error, result) => {
             if (result.length === 0) {
                 console.log("error:", error);
-                console.log("Contul nu exista.");
-                reject("User not found.");
+                console.log("Contul nu exista");
+                reject("User not found!");
             } else {
                 console.log("result:", result);
-                console.log("Contul exista.");
+                console.log("Contul exista");
                 let user = result[0];
                 resolve(user);
             }
