@@ -30,8 +30,7 @@ app.use(cookieSession({
     secret: 'secret-cookieSession',
     saveUninitialized: true,
     resave: false
-  }));
-
+}));
 app.use(flash());
 
 //to get the logged in user information

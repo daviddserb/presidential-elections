@@ -2,229 +2,285 @@ const db_connection = require('./connection.js');
 const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
 
-function registerUser(name, email, password) {
-    console.log("registerUser()");
+function createUser(name, email, password) {
+    // Object to store predefined emails and their corresponding roles
+    const predefineAdmindEmails = {
+        "daviddserb@yahoo.com": 'admin',
+        "admin@yahoo.com": 'admin',
+        "admin2@gmail.com": 'admin',
+    };
+
+    // Get the role based on the user's provided email (if it's not an admin, it will be NULL save on the role)
+    const role = predefineAdmindEmails[email];
+
     /* Promise = object who represents the completion or failure of an async operation and its resulting value. */
     return new Promise(async (resolve, reject) => {
         await connection.query(
-            "INSERT INTO users(name, email, password) VALUES(?, ?, ?)",
-            [name, email, password],
+            `INSERT INTO users(name, email, password, role)
+            VALUES(?, ?, ?, ?)`,
+            [name, email, password, role],
             function (error, result) {
-            if (error) {
-                console.log("error:", error);
-                if (error.code === "ER_DUP_ENTRY") {
-                    console.log("Name si/sau Email sunt deja in DB");
-                    reject("The name and/or the email is already taken, please change it!");
+                if (error) {
+                    console.log("ERROR:", error);
+                    if (error.code === "ER_DUP_ENTRY") {
+                        reject("The name and/or the email is already taken!");
+                    }
                 } else {
-                    console.log("??? Erori pe server");
-                    reject("An error occurred while creating the account!");
+                    resolve("Account successfully created!");
                 }
-            } else {
-                console.log("S-a creat contul");
-                console.log("result:", result);
-                resolve("Account successfully created!");
             }
-        });
+        );
     });
 }
 
 function loginUser(email, password) {
-    console.log("loginUser()");
     return new Promise(async (resolve, reject) => {
-        // BEFORE:
-        // `SELECT * FROM users WHERE email = '${email}' && password = '${password}'`
-        // AFTER (Prevent SQL Injection with Parameterized Queries):
-        await connection.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password], (error, result) => {
-            if (result.length === 0) {
-                console.log("error:", error);
-                console.log("Contul nu exista");
-                reject("User not found!");
-            } else {
-                console.log("result:", result);
-                console.log("Contul exista");
-                let user = result[0];
-                resolve(user);
+        // Prevent SQL Injection with Parameterized Queries
+        await connection.query(
+            `SELECT *
+            FROM users
+            WHERE email = ? AND password = ?`,
+            [email, password],
+            (error, result) => {
+                if (result.length === 0) {
+                    reject("User not found!");
+                } else {
+                    const user = result[0];
+                    console.log("logged in user data:", user);
+                    resolve(user);
+                }
             }
-        });
+        );
     });
 }
 
 function checkIfRunningElection() {
-    console.log("checkIfRunningElection()");
     return new Promise(async (resolve, reject) => {
-        await connection.query(`SELECT * FROM elections WHERE NOW() BETWEEN start AND stop`, function(error, result) {
-            if (error) {
-                console.log("error: ", error)
-                throw error;
-            } else {
-                console.log("result:", result);
-                if (result.length === 0) {
-                    console.log("no election running");
-                    reject("No election running right now!");
+        await connection.query(
+            `SELECT * FROM
+            elections WHERE NOW() BETWEEN start AND stop`,
+            function(error, result) {
+                if (error) {
+                    throw error;
                 } else {
-                    console.log("election running");
-                    resolve(result[0]);
+                    if (result.length === 0) {
+                        reject("No election running right now!");
+                    } else {
+                        // An existing election is already running right now
+                        resolve(result[0]);
+                    }
                 }
             }
-        });
+        );
     });
 }
 
-function checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection) {
-    console.log("checkIfCurrentCandidate()");
+// Check if an election is already scheduled for the future (and haven't already started)
+function checkIfFutureElectionScheduled() {
     return new Promise(async (resolve, reject) => {
-        await connection.query(`SELECT * FROM candidates WHERE (candidate = '${loggedInUserInfo.name}' AND nr_election = ${currentRunningElection.id})`, function(err, res) {
-            if (err) {
-                console.log("error: ", err)
-                throw err;
-            } else {
-                console.log("res:", res);
-                if (res.length === 0) {
-                    console.log("logged-in user nu este candidat la curenta electie");
-                    reject("Logged-in user is not a candidate in the running election");
+        await connection.query(
+            `SELECT *
+            FROM elections
+            WHERE start > NOW()`,
+            function(err, res) {
+                if (err) {
+                    throw err;
                 } else {
-                    console.log("logged-in user este candidat la curenta electie");
-                    resolve(res);
+                    if (res.length === 0) reject(false)
+                    else resolve(res[0])
                 }
             }
-        });
+        );
+    });
+}
+
+function checkIfCurrentCandidate(loggedInUserData, currentRunningElection) {
+    return new Promise(async (resolve, reject) => {
+        await connection.query(
+            `SELECT * FROM candidates
+            WHERE (candidate = '${loggedInUserData.name}' AND nr_election = ${currentRunningElection.id})`,
+            function(err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    if (res.length === 0) {
+                        reject("Logged-in user is not a candidate in the running election");
+                    } else {
+                        resolve(res);
+                    }
+                }
+            }
+        );
     });
 }
 
 function saveCandidate(currentRunningElection, loggedInUserName) {
     console.log("saveCandidate()");
     return new Promise(async (resolve, reject) => {
-        connection.query("INSERT INTO candidates(nr_election, candidate)" +
-        "VALUES ('"+ currentRunningElection.id +"', '"+ loggedInUserName +"')", (err, res) => {
-            if (err) {
-                console.log("err:", err);
-                throw err;
-            } else {
-                console.log("res:", res);
-                console.log("candidat salvat in DB");
-                resolve("Successfully running for presidency!");
+        connection.query(
+            "INSERT INTO candidates(nr_election, candidate)" +
+            "VALUES ('"+ currentRunningElection.id +"', '"+ loggedInUserName +"')",
+            (err, res) => {
+                if (err) {
+                    throw err;
+                } else {
+                    resolve("Successfully running for presidency!");
+                }
             }
-        });
+        );
     });
 }
 
-function selectCandidates(runningElection) {
-    console.log("selectCandidates()");
+// Get all candidates with their votes from current running election
+function getCandidatesWithVotes(runningElection) {
     return new Promise(async resolve => {
-        connection.query(`SELECT candidate FROM candidates WHERE nr_election = ${runningElection.id}`, function(err, res) {
-            if (err) {
-                throw err;
-            } else {
-                console.log("candidati in electia curenta:");
-                console.log(res);
-                resolve(res);
+        connection.query(
+            `SELECT c.candidate, COUNT(v.elected) as votes
+            FROM candidates c
+            LEFT JOIN votes v ON c.candidate = v.elected
+            WHERE c.nr_election = '${runningElection.id}'
+            GROUP BY c.candidate`,
+            function (err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log("all candidates with votes from current running election:", res);
+                    resolve(res);
+                }
             }
-        });
+        );
     });
 }
 
-function selectElectedsAndCountVotes(lastElectionStart, lastElectionStop) {
-    console.log("selectElectedsAndCountVotes()");
+function getVoterLastVoteDate(voterName) {
     return new Promise(async resolve => {
-         connection.query(`SELECT elected, COUNT(elected) as votes FROM votes WHERE (vote_date BETWEEN '${lastElectionStart}' AND '${lastElectionStop}') GROUP BY elected`, function (err, res) {
-            if (err) {
-                throw err;
-            } else {
-                console.log("avem voturi?");
-                console.log(res);
-                resolve(res);
+        connection.query(
+            `SELECT vote_date
+            FROM votes
+            WHERE voter = '${voterName}'
+            ORDER BY id DESC
+            LIMIT 1`,
+            function(err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log(res);
+                    console.log("ultimul vot a user-ului care a votat:", res[0]);
+                    resolve(res[0]);
+                }
             }
-        });
+        );
     });
 }
 
-function hisLastVote(userNameVoter) {
-    console.log("hisLastVote()");
+function saveVote(electionId, voter, elected) {
     return new Promise(async resolve => {
-        connection.query(`SELECT vote_date FROM votes WHERE voter = '${userNameVoter}' ORDER BY id DESC LIMIT 1`, function(err, res) {
-            if (err) {
-                throw err;
-            } else {
-                console.log("ultimul vot al user-ului:");
-                console.log(res[0]);
-                resolve(res[0]);
+        connection.query(
+            "INSERT INTO votes (nr_election, voter, elected)" +
+            "VALUES ('"+  electionId +"', '"+  voter.name +"', '"+ elected +"')",
+            (err) => {
+                if (err) {
+                    throw err;
+                } else {
+                    resolve(true);
+                }
             }
-        });
+        );
     });
 }
 
-function saveVote(userNameVoter, userNameElected) {
-    console.log("saveVote()");
+function getUserVoteHistory(loggedInUser) {
     return new Promise(async resolve => {
-        connection.query("INSERT INTO votes (voter, elected, vote_date)" +
-        "VALUES ('"+  userNameVoter +"', '"+ userNameElected +"', CURRENT_TIMESTAMP)", (err) => {
-            if (err) {
-                throw err;
-            } else {
-                console.log("vot salvat")
-                resolve(true);
+        connection.query(
+            `SELECT v.voter, e.id AS election_id, e.start AS election_start, e.stop AS election_stop, v.vote_date, v.elected
+            FROM votes v
+            JOIN elections e ON v.nr_election = e.id
+            WHERE v.voter = '${loggedInUser}'
+            ORDER BY e.start`,
+            function(err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log("all user votes in all elections made:", res);
+                    resolve(res);
+                }
             }
-        });
+        );
     });
 }
 
-function allHisVotes(userNameVoter) {
-    console.log("allHisVotes()");
+// For Admin only
+function createElection(startPresidency, stopPresidency) {
+    // Format dates as strings in the "YYYY-MM-DD HH:mm:ss" format
+    const startPresidencyFormatted = startPresidency.toISOString().slice(0, 19).replace("T", " ");
+    const stopPresidencyFormatted = stopPresidency.toISOString().slice(0, 19).replace("T", " ");
+
     return new Promise(async resolve => {
-        connection.query(`SELECT * FROM votes WHERE voter = '${userNameVoter}'`, function(err, res) {
-            if (err) {
-                throw err;
-            } else {
-                console.log("user votes:");
-                console.log(res);
-                resolve(res);
+        connection.query(
+            `INSERT INTO elections (start, stop)
+            VALUES (?, ?)`,
+            [startPresidencyFormatted, stopPresidencyFormatted],
+            (err) => {
+                if (err) {
+                    throw err;
+                } else {
+                    resolve(true);
+                }
             }
-        });
+        );
     });
 }
 
-function selectAllElections() {
-    console.log("selectAllElections()");
+// Get the electeds with their votes from all elections
+// The first elected from each election (in the result of the query) is the president (the winner of that election), because it is sorted by the total votes
+function getElectedsWithVotesFromAllElections() {
     return new Promise(async resolve => {
-        connection.query(`SELECT * FROM elections`, function(err, res) {
-            if (err) {
-                throw err;
-            } else {
-                console.log("toate electiile:");
-                console.log(res);
-                resolve(res);
+        connection.query(
+            `SELECT nr_election, elected, COUNT(*) AS total_votes
+            FROM votes
+            GROUP BY elected
+            ORDER BY nr_election, total_votes DESC`,
+            function(err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    console.log("all electeds with votes (sorted by votes) from all elections:", res);
+                    resolve(res);
+                }
             }
-        });
+        );
     });
 }
 
-//For Admin only
-function startElections(startPresidency, stopPresidency) {
-    console.log("startElections()");
+// Get all elections made in the system
+function getAllElections() {
     return new Promise(async resolve => {
-        connection.query("INSERT INTO elections (start, stop)" +
-        "VALUES ('"+  startPresidency +"', '"+ stopPresidency +"')", (err) => {
-            if (err) {
-                throw err;
-            } else {
-                resolve(true);
+        connection.query(
+            `SELECT *
+            FROM elections`,
+            function(err, res) {
+                if (err) {
+                    throw err;
+                } else {
+                    resolve(res);
+                }
             }
-        });
+        );
     });
 }
-
 
 module.exports = {
-    registerUser,
+    createUser,
     loginUser,
-    startElections,
+    createElection,
     checkIfRunningElection,
+    checkIfFutureElectionScheduled,
     checkIfCurrentCandidate,
     saveCandidate,
-    selectCandidates,
-    selectElectedsAndCountVotes,
-    hisLastVote,
+    getCandidatesWithVotes,
+    getVoterLastVoteDate,
     saveVote,
-    allHisVotes,
-    selectAllElections
+    getUserVoteHistory,
+    getElectedsWithVotesFromAllElections,
+    getAllElections
 };

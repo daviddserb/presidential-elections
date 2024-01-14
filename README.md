@@ -1,15 +1,9 @@
 # PresidentialElections
 
-Presidential Elections it’s a project about elections and voting. You need to make an account in order to use it.
+Presidential Elections is a web application designed to empower users to participate as presidential candidates. The application encompasses a range of features that empower administrators to initiate elections, facilitating users in their pursuit of the presidency while ensuring eligibility in the voting process.
 
-If the admin started the elections, you can:
+Furthermore, the application establishes a comprehensive vote tracking system, enabling users to submit a single vote per day, with the exception of self-votes. This mechanism ensures a fair and transparent electoral process.
 
-1. Run for president.
+Additionally, users are provided with the capability to review their complete voting history, and also the winner of each presidential election from every campaign
 
-2. See all the presidential candidates from the current election and how many votes each candidate has. You can vote only once a day, except for yourself.
-
-3. Check all your votes history from every election.
-
-Pop-up messages will appear after every action to let the user know what happened.
-
-I used: Node.js, Express.js, JavaScript, SQL, and HTML/CSS with Bootstrap.
+Technologies used: Node.js, Express.js, JavaScript, SQL, HTML, CSS, and Bootstrap.

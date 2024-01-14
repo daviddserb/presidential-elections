@@ -11,46 +11,45 @@ db_connection.createConnection();
 db_connection.connectToDatabase();
 db_tables.createTablesInDatabase();
 
+// TODO: refactor this whole
+// Messages
 router.get('/pop-up-message', async (req, res) => {
-    console.log("/pop-up-message");
+    console.log("################ /pop-up-message");
 
     let messages = req.flash('message');
     console.log("messages: ", messages);
-    //??? BUG: sometimes req.flash('message') saves a message for multiple times, so I just select the last message which is the good one (work-around).
+    // Sometimes req.flash('message') saves a message for multiple times (BUG), so I just select the last message which is the good one (work-around)
     let lastMessage = messages[messages.length - 1] + '';
     console.log('lastMessage:', lastMessage);
 
-    if (lastMessage == 'Account successfully created!' || lastMessage == 'The name and/or the email is already taken, please change it!' || lastMessage == 'User not found!') {
+    if (lastMessage == 'Account successfully created.' || lastMessage == 'The name and/or the email is already taken!' || lastMessage == 'User not found!') {
         res.render('homePage', {popUpMessage : lastMessage});
-    } else if (lastMessage == 'Presidency succesfully created.') {
-        res.render('adminAccount', {registeredUserInfo : req.session.loggedInUserInfo, popUpMessage : lastMessage});
+    } else if (lastMessage == 'Presidency election started.' || lastMessage == 'Election start date can not be in the past!' || lastMessage == 'Election duration can not be less than 7 days!' || lastMessage == 'An existing election is already running!' || lastMessage == 'An election is already scheduled for the future!') {
+        res.render('adminAccount', {loggedInAdminInfo : req.session.loggedInUserInfo, message : lastMessage});
     } else if (lastMessage == 'No election running right now!') {
         console.log("/pop-up-messaage/userAccount");
         res.render('userAccount', {registeredUserInfo : req.session.loggedInUserInfo, isCandidate: " ", popUpMessage : lastMessage});
     } else if (lastMessage == 'You can only vote once per day.' || lastMessage == 'You can not vote yourself!') {
         let runningElection = await db_users.checkIfRunningElection();
-        let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-        let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-        res.render('presidentList', {candidates : await db_users.selectCandidates(runningElection), electeds : await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop), popUpMessage : lastMessage});
+        let runningElectionStart = formatDate(runningElection.start);
+        let runningElectionStop = formatDate(runningElection.stop);
+        //res.render('presidentList', {candidates : await db_users.selectAllCandidates(runningElection), electeds : await db_users.getElectedsWithVotes(runningElectionStart, runningElectionStop), popUpMessage : lastMessage});
     } else {
-        console.log("nu s-a intrat in niciun mesaj");
+        console.log("NO MESSAGE");
     }
 });
 
 router.post('/register', async function (req, res) {
     console.log("/register");
-    let name = req.body.inputName;
-    let email = req.body.inputEmail;
-    let password = req.body.inputPassword;
+    const name = req.body.inputName;
+    const email = req.body.inputEmail;
+    const password = req.body.inputPassword;
 
     try {
-        const promiseResult = await db_users.registerUser(name, email, password);
-        console.log("promiseResult:", promiseResult);
-        if (promiseResult == "Account successfully created!") {
+        const promiseResult = await db_users.createUser(name, email, password);
+        if (promiseResult == "Account successfully created.") {
             req.flash('message', `${promiseResult}`);
             res.redirect('pop-up-message');
-        } else {
-            console.log("??? Erori de pe server");
         }
     } catch (error) {
         req.flash('message', `${error}`);
@@ -60,25 +59,18 @@ router.post('/register', async function (req, res) {
 
 router.post('/login', (req, res) => {
     console.log("/login");
-    let email = req.body.searchEmail;
-    let password = req.body.searchPassword;
+    const email = req.body.accountEmail;
+    const password = req.body.accountPassword;
 
-    //Call promises with: then catch or async await and try catch.
     db_users.loginUser(email, password)
     .then((result) => {
-        console.log("then:");
-        console.log("result:", result);
-        
-        //req = HTTP request facut de client (web browser) spre server (Node.js).
-        //Salvam datele in-memory pe server si astfel putem accesa datele la diferite HTTP requests.
+        // req is a HTTP request made by the client (web browser) to the server (Node.js).
+        // We use it in order to save data (information about the logged in user) in-memory on the server so we can access the data in different HTTP requests.
         req.session.loggedInUserInfo = result;
 
         res.redirect('profile');
     })
     .catch((error) => {
-        console.log("catch:");
-        console.error("error:", error);
-
         req.flash('message', `${error}`);
         res.redirect('pop-up-message');
     });
@@ -87,166 +79,236 @@ router.post('/login', (req, res) => {
 router.get('/profile', async (req, res) => {
     console.log("/profile");
 
-    let loggedInUserInfo = req.session.loggedInUserInfo;
+    const loggedInUserData = req.session.loggedInUserInfo;
 
-    let currentRunningElection;
-    let isElection = false;
-    let currentRunningCandidate;
-    let isCandidate = false; //Suppose logged-in user is not a candidate
-    let popUpMessage = '';
+    let isRunningElection = false;
+    let isCurrentCandidate = false;
 
     try {
-        //Check if there is a running election
-        currentRunningElection = await db_users.checkIfRunningElection();
-        if (currentRunningElection != []) {
-            isElection = true;
-            //Check if the logged-in user is a candidate
-            currentRunningCandidate = await db_users.checkIfCurrentCandidate(loggedInUserInfo, currentRunningElection);
+        const runningElection = await db_users.checkIfRunningElection();
+
+        // Check if there is a running election
+        if (runningElection != []) {
+            isRunningElection = true;
+
+            const currentRunningCandidate = await db_users.checkIfCurrentCandidate(loggedInUserData, runningElection);
+
+            // Check if the logged-in user is a candidate in the current running election
             if (currentRunningCandidate != []) {
-                isCandidate = true;
+                isCurrentCandidate = true;
             }
         }
     } catch (error) {
-        console.log("catch:");
-        if (error == "No election running right now!") {
-            popUpMessage = error;
-        }
+        console.log("error:", error);
+        var message = error;
     }
 
-    if (req.session.loggedInUserInfo.role != "admin") {
-            res.render('userAccount', {registeredUserInfo : loggedInUserInfo, isElection : isElection, isCandidate : isCandidate, popUpMessage : popUpMessage});
+    if (loggedInUserData.role != "admin") {
+        res.render('userAccount', {loggedInUserInfo : loggedInUserData, isRunningElection : isRunningElection, isCurrentCandidate : isCurrentCandidate, message : message});
     } else {
-            res.render('adminAccount', {registeredUserInfo : loggedInUserInfo, popUpMessage : "adminAcc"});
+        res.render('adminAccount', {loggedInAdminInfo : loggedInUserData});
     }
 });
 
 router.post("/president/run", async (req, res) => {
-    console.log("/president/run");
-    let loggedInUserName = req.session.loggedInUserInfo.name;
+    const loggedInUserData = req.session.loggedInUserInfo;
 
     try {
-        let currentRunningElection = await db_users.checkIfRunningElection();
-        if (currentRunningElection != []) {
-            let saveCandidate = await db_users.saveCandidate(currentRunningElection, loggedInUserName);
-            if (saveCandidate == "Successfully running for presidency!") {
-                if (appRunOn == "localhost") {
-                    res.redirect(`http://localhost:3000/users/president/list`);
-                } else {
-                    res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
-                }
+        const runningElection = await db_users.checkIfRunningElection();
+
+        // Check if an election is running rigth now
+        if (runningElection != []) {
+
+            if (await db_users.saveCandidate(runningElection, loggedInUserData) == "Successfully running for presidency!") {
+                res.redirect('/users/president/list');
             }
         }
     } catch (exception) {
-        console.log("catch:");
-        if (error == "No election running right now!") {
-            popUpMessage = error;
-        }
+        console.log("exception:", exception);
     }
 });
 
 router.get('/president/list', async (req, res) => {
-    console.log("/president/list/")
-    let runningElection = await db_users.checkIfRunningElection();
+    const loggedInUserData = req.session.loggedInUserInfo;
 
-    if (runningElection == undefined) { // ???
-        req.flash('message', 'No election running right now!');
-        res.redirect('../pop-up-message');
-    } else {
-        let allCandidates = await db_users.selectCandidates(runningElection);
+    try {
+        const runningElection = await db_users.checkIfRunningElection();
 
-        let runningElectionStart = runningElection.start.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-        let runningElectionStop = runningElection.stop.toISOString().replace(/T/, ' ').replace(/\..+/, '');
-        console.log("runningElectionStart:");
-        console.log(runningElectionStart);
-        console.log("runningElectionStop:");
-        console.log(runningElectionStop);
+        const allCandidatesWithVotes = await db_users.getCandidatesWithVotes(runningElection);
 
-        let electedsAndVotes = await db_users.selectElectedsAndCountVotes(runningElectionStart, runningElectionStop);
-        res.render('presidentList', {candidates : allCandidates, electeds : electedsAndVotes, popUpMessage : " "});
+        res.render('presidentList', {loggedInUserData : loggedInUserData, candidatesWithVotes : allCandidatesWithVotes});
+    } catch (error) {
+        console.log("error:", error);
     }
 });
 
 router.post("/user/:id/vote", async (req, res) => {
-    console.log(`/user/${req.params.id}/vote`);
+    // The user who voted (it only can be the logged in user)
+    const voter = req.session.loggedInUserInfo;
+    // The name of the user who got voted
+    const votedCandidate = req.params.id;
 
-    let userNameElected = req.params.id;
-    let userNameVoter = req.session.loggedInUserInfo.name;
-    console.log("userNameElected= " + userNameElected);
-    console.log("userNameVoter= " + userNameVoter);
-
-    if (userNameElected == userNameVoter) {
-        console.log("nu te poti vota de tine");
+    // Validation: User cannot vote himself
+    if (voter.name === votedCandidate) {
         req.flash('message', 'You can not vote yourself!');
         res.redirect('../../pop-up-message');
-    } else {
-        let lastVoteDate = await db_users.hisLastVote(userNameVoter);
-        if (lastVoteDate != false) {
-            let presentDate = new Date(new Date() + "UTC");
-            let userNameVoter_LastTimeHeVoted, userNameVoter_LastTimeHeVoted_AfterADay;
+        return;
+    }
 
-            if (lastVoteDate == undefined) { //when the user who wants to vote, never voted once before
-                userNameVoter_LastTimeHeVoted = "never";
-            } else {
-                userNameVoter_LastTimeHeVoted = lastVoteDate.vote_date;
-                userNameVoter_LastTimeHeVoted_AfterADay = userNameVoter_LastTimeHeVoted;
-                userNameVoter_LastTimeHeVoted_AfterADay.setDate(userNameVoter_LastTimeHeVoted_AfterADay.getDate() + 1)
-                
-                console.log("userNameVoter_LastTimeHeVoted_AfterADay:");
-                console.log(userNameVoter_LastTimeHeVoted_AfterADay);
-                console.log("presentDate:");
-                console.log(presentDate);
-            }
-            
-            //if he never voted before or if it already passed 1 day since the last vote => he can vote
-            if (userNameVoter_LastTimeHeVoted == "never" || userNameVoter_LastTimeHeVoted_AfterADay < presentDate) {
-                if (await db_users.saveVote(userNameVoter, userNameElected) == true) {
-                    if (appRunOn == "localhost") {
-                        res.redirect(`http://localhost:3000/users/president/list`);
-                    } else {
-                        res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
-                    }
-                }
-            } else {
-                req.flash('message', 'You can only vote once per day.');
-                res.redirect('../../pop-up-message');
-            }
+    // Validation: User cannot vote more than one time/day
+    const voterLastVoteDate = await db_users.getVoterLastVoteDate(voter.name);
+    // Case 1: Voter has not voted at all (never) until now => CAN VOTE
+    if (!voterLastVoteDate) {
+        userCanVote(res, voter, votedCandidate);
+    // Case 2: Voter has voted before => check if ONE DAY has passed since HIS LAS VOTE
+    } else {
+        const currentDate = new Date();
+        
+        // Calculate the time difference in milliseconds
+        const timeDifference = currentDate - voterLastVoteDate.vote_date;
+        
+        // Calculate the number of milliseconds in a day
+        const oneDayInMilliseconds = 24 * 60 * 60 * 1000;
+        
+        // Case 2.1: A day has passed since the last vote => CAN VOTE
+        if (timeDifference >= oneDayInMilliseconds) {
+            userCanVote(res, voter, votedCandidate);
+        // Case 2.2: Less than a day has passed since the last vote => CANNOT VOTE
+        } else {
+            // TODO: ??? nu se printeaza mesajul
+            console.log("NU a trecut o zi de la ultimul vot => nu poate vota");
+            req.flash('message', 'You can only vote once per day.');
+            res.redirect('../../pop-up-message');
         }
     }
 });
 
 router.get('/votes/history', async (req, res) => {
-    console.log("/votes/history");
-    
-    let userNameVoter = req.session.loggedInUserInfo.name;
+    const loggedInUserData = req.session.loggedInUserInfo;
 
-    let allHisVotes = await db_users.allHisVotes(userNameVoter);
-    if (allHisVotes.length >= 0) {
-        let usersNameVoted = [], datesOfVote = [];
-        for (let i = 0; i < allHisVotes.length; ++i) {
-            usersNameVoted[i] = allHisVotes[i].elected;
-            datesOfVote[i] = allHisVotes[i].vote_date;
+    const userVoteHistory = await db_users.getUserVoteHistory(loggedInUserData.name);
+    // Initialize an empty dictionary
+    const userVoteHistoryDict = {};
+    // Iterate through the query result and populate the dictionary
+    userVoteHistory.forEach(row => {
+        // Create the composed key for the dictionary
+        const dictKey = `${formatDate(row.election_start)} ~ ${formatDate(row.election_stop)}`;
+
+        // Check if the dictKey is already a key in the dictionary
+        if (!userVoteHistoryDict.hasOwnProperty(dictKey)) {
+            // If not, create a new array for that key
+            userVoteHistoryDict[dictKey] = [];
         }
-        console.log("usersNameVoted");
-        console.log(usersNameVoted);
-        console.log("datesOfVote");
-        console.log(datesOfVote);
 
-        let allElections = await db_users.selectAllElections();
-        res.render('votesHistory', {registeredUserName : userNameVoter, usersNameVoted : usersNameVoted, date : datesOfVote, allElections : allElections, appRunOn : appRunOn});    
-    }
+        // Save the current row into the array corresponding to the dictKey
+        userVoteHistoryDict[dictKey].push({
+            nr_election: row.election_id,
+            elected: row.elected,
+            vote_date: formatDate(row.vote_date),
+            election_stop: row.election_stop
+        });
+    });
+    console.log("userVoteHistoryDict:", userVoteHistoryDict);
+
+    const electedsWithVotes = await db_users.getElectedsWithVotesFromAllElections();
+    // The winners from all elections made (one winner per election)
+    const electionWinners = getFirstRowForEachElection(electedsWithVotes);
+    console.log("winners from all elections:", electionWinners);
+
+    res.render('votesHistory', {loggedInUserName : loggedInUserData.name, userVoteHistoryDict : userVoteHistoryDict, electionWinners : electionWinners});
 });
 
-//For Admin only
+// For Admin only
 router.post("/president/elections", async (req, res) => {
-    console.log("/president/elections");
+    // Extract the admin's input for Dates (that come as string) and convert them to Date
+    const startDateElection = new Date(req.body.startDateElection);
+    const finishDateElection = new Date(req.body.finishDateElection);
 
-    let startPresidency = req.body.startPresidency;
-    let stopPresidency = req.body.stopPresidency;
+    // Validation: Start date cannot be in the past
+    const currentDate = new Date();
+    if (startDateElection < currentDate) {
+        req.flash('message', 'Election start date can not be in the past!');
+        res.redirect('../pop-up-message');
+        return;
+    }
 
-    if (await db_users.startElections(startPresidency, stopPresidency) == true) {
-        req.flash('message', 'Presidency succesfully created.');
+    // Validation: The election duration cannot be less than at least minElectionDuration days
+    const minElectionDuration = 7; // The minimum duration for an election
+
+    const timeDifference = finishDateElection - startDateElection; // Calculate the election interval in milliseconds
+    const daysTimeDifference = timeDifference / (1000 * 60 * 60 * 24); // Convert the election interval to days
+
+    if (daysTimeDifference < minElectionDuration) {
+        // TODO: ??? how to send a variable in the message instead of hard-coded number (7)
+        req.flash('message', 'Election duration can not be less than 7 days!');
+        res.redirect('../pop-up-message');
+        return;
+    }
+
+    // Validation: Cannot create a new election if an election is already running
+    try {
+        await db_users.checkIfRunningElection();
+        req.flash('message', 'An existing election is already running!');
+        res.redirect('../pop-up-message');
+        return;
+    } catch (error) {
+        // No election is running right now
+    }
+
+    // Validation: Cannot create a new election if an election is scheduled for the future
+    try {
+        await db_users.checkIfFutureElectionScheduled();
+        // TODO: ??? sa trimit start si stop-ul election-ului pt. a spune in mesaj ca este programata o electie pt. viitor si sa arat date-urile
+        req.flash('message', 'An election is already scheduled for the future!');
+        res.redirect('../pop-up-message');
+        return;
+    } catch (error) {
+        // No election is scheduled for the future
+    }
+
+    if (await db_users.createElection(startDateElection, finishDateElection) == true) {
+        req.flash('message', 'Presidency election started.');
         res.redirect('../pop-up-message');
     }
 });
+
+async function userCanVote(res, voter, elected) {
+    try {
+        const runningElection = await db_users.checkIfRunningElection();
+
+        if (await db_users.saveVote(runningElection.id, voter, elected) == true) {
+
+            // Redirect to the same URL you are on when voting to refresh the page so the vote is loaded
+            if (appRunOn == "localhost") {
+                res.redirect(`http://localhost:3000/users/president/list`);
+            } else {
+                res.redirect(`https://presidential--elections.herokuapp.com/users/president/list`);
+            }
+        }
+    } catch (exception) {
+        console.log("exception:", exception);
+    }
+}
+
+// date should be of type DateTime and will be returned as formatted string
+function formatDate(date) {
+    return date.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+}
+
+// Function to get only the first row for each nr_election (so the result will be the winner from each election)
+const getFirstRowForEachElection = (electedsWithVotes) => {
+    const firstRowsDict = {};
+
+    electedsWithVotes.forEach((row) => {
+      const { nr_election } = row;
+  
+      // If this nr_election is not already in the dictionary, add it
+      if (!firstRowsDict.hasOwnProperty(nr_election)) {
+        firstRowsDict[nr_election] = row;
+      }
+    });
+  
+    return firstRowsDict;
+};
 
 module.exports = router;
