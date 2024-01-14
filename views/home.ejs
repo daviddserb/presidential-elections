@@ -1,0 +1,54 @@
+<!-- Display Pop-up message (only if there is one) -->
+<% if (typeof message !== 'undefined') { %>
+    <% if (message == "The name and/or the email is already taken!" || message == "User not found!") { %>
+        <div class="alert alert-danger" style="height: 50px">
+            <%= message %>
+        </div>
+    <% } else if (message == "Account successfully created.") { %>
+        <div class="alert alert-success" style="height: 50px">
+            <%= message %>
+        </div>
+    <% } %>
+<% } %>
+
+<div class="card" style="border-radius: 15px">
+    <!-- Display Register -->
+    <div class="card-body p-5">
+        <h2 class="text-uppercase text-center mb-5">create an account</h2>
+        <form action="/users/register" method="POST">
+            <div class="form-floating mb-3">
+                <input type="text" name="inputName" class="form-control form-control-lg" required/>
+                <label>Name</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input type="email" name="inputEmail" class="form-control form-control-lg" required/>
+                <label>Email</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input type="password" name="inputPassword" class="form-control form-control-lg" required/>
+                <label>Password</label>
+            </div>
+            <div class="d-flex justify-content-center">
+                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Register">
+            </div>
+        </form>
+    </div>
+    <hr>
+    <!-- Display Log In -->
+    <div class="card-body p-5">
+        <h2 class="text-uppercase text-center mb-5">log in</h2>
+        <form action="/users/login" method="POST">
+            <div class="form-floating mb-3">
+                <input type="email" name="accountEmail" class="form-control form-control-lg" required/>
+                <label>Email</label>
+            </div>
+            <div class="form-floating mb-3">
+                <input type="password" name="accountPassword" class="form-control form-control-lg" required/>
+                <label>Password</label>
+            </div>
+            <div class="d-flex justify-content-center">
+                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Log in">
+            </div>
+        </form>
+    </div>
+</div>

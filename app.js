@@ -4,11 +4,15 @@ var path = require('path');
 var cookieParser = require('cookie-parser');
 var logger = require('morgan');
 
-//Pop-up messages: cookie-session stores the data on the client VS express-session stores data on the server
+// For pop-up messages:
 var cookieSession = require('cookie-session');
 var flash = require('connect-flash');
 
-var expressSession = require('express-session'); //to get the logged-in user information
+// For the logged-in user information - to store it on the server-side
+var expressSession = require('express-session');
+
+// For express ejs layours
+const expressLayouts = require('express-ejs-layouts');
 
 var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
@@ -17,6 +21,7 @@ var app = express();
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
+app.use(expressLayouts); // Use the layout (I think it sets it as first page to render)
 app.set('view engine', 'ejs');
 
 app.use(logger('dev'));
@@ -25,7 +30,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-//for pop-up messages
+// For pop-up messages
 app.use(cookieSession({
     secret: 'secret-cookieSession',
     saveUninitialized: true,
@@ -33,7 +38,7 @@ app.use(cookieSession({
 }));
 app.use(flash());
 
-//to get the logged in user information
+// To get the logged-in user information
 app.use(expressSession({
     secret: 'secret-expressSession',
     saveUninitialized: false,

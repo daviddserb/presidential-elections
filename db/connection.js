@@ -1,14 +1,12 @@
 const mysql = require('mysql');
 
-var connection, appRunOn;
+var connection;
 
 function createConnection() {
-    // Check if app is running (hosted) on Heroku
+    // Check if app is running on Heroku
     if (process.env.JAWSDB_URL) {
         // Create connection to JawsDB
         connection = mysql.createConnection(process.env.JAWSDB_URL);
-
-        appRunOn = "heroku";
     } else {
         // Create connection to MySQL
         connection = mysql.createConnection({
@@ -18,10 +16,8 @@ function createConnection() {
             database: "presidential_elections_db",
             port: "3306"
         });
-
-        appRunOn = "localhost";
     }
-    return [connection, appRunOn];
+    return [connection];
 }
 
 function connectToDatabase() {

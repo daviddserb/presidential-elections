@@ -1,0 +1,30 @@
+<!-- Display Pop-up message (only if there is one) -->
+<% if (typeof message !== 'undefined') { %>
+    <div class="alert alert-danger">
+        <%= message %>
+    </div>
+<% } %>
+<div class="card" style="border-radius: 15px;">
+    <!-- Display user name -->
+    <h3 class="text-center mb-3"> <%= loggedInUserData.name %> </h3>
+    <hr>
+    <% if (candidatesWithVotes.length === 0) { %>
+        <span style="color: red;">There are no candidates!</span>
+    <% } else { %>
+        <% for (let cnt = 0; cnt < candidatesWithVotes.length; ++cnt) { %>
+            <ul>
+                <!-- Display user with votes -->
+                <%= cnt + 1 %>. <b><%= candidatesWithVotes[cnt].candidate %></b> - <%= candidatesWithVotes[cnt].votes %> votes
+
+                <!-- Admins are not allowed to vote -->
+                <% if (loggedInUserData.role !== 'admin') { %>
+                    <form action="/users/user/<%= candidatesWithVotes[cnt].candidate %>/vote" method="POST">
+                        <input type="submit" class="btn btn-success btn-block gradient-custom-4 text-body" value="Vote">
+                    </form>
+                <% } %>
+            </ul>
+        <% } %>
+    <% } %>
+</div>
+
+<%- include('partials/bottom-buttons.ejs') %>

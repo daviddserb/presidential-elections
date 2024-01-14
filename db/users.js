@@ -21,7 +21,6 @@ function createUser(name, email, password) {
             [name, email, password, role],
             function (error, result) {
                 if (error) {
-                    console.log("ERROR:", error);
                     if (error.code === "ER_DUP_ENTRY") {
                         reject("The name and/or the email is already taken!");
                     }
@@ -45,9 +44,8 @@ function loginUser(email, password) {
                 if (result.length === 0) {
                     reject("User not found!");
                 } else {
-                    const user = result[0];
-                    console.log("logged in user data:", user);
-                    resolve(user);
+                    console.log("logged-in user data:", result[0]);
+                    resolve(result[0]);
                 }
             }
         );
@@ -114,12 +112,11 @@ function checkIfCurrentCandidate(loggedInUserData, currentRunningElection) {
     });
 }
 
-function saveCandidate(currentRunningElection, loggedInUserName) {
-    console.log("saveCandidate()");
+function saveCandidate(currentRunningElection, loggedInUserData) {
     return new Promise(async (resolve, reject) => {
         connection.query(
             "INSERT INTO candidates(nr_election, candidate)" +
-            "VALUES ('"+ currentRunningElection.id +"', '"+ loggedInUserName +"')",
+            "VALUES ('"+ currentRunningElection.id +"', '"+ loggedInUserData.name +"')",
             (err, res) => {
                 if (err) {
                     throw err;
@@ -135,11 +132,11 @@ function saveCandidate(currentRunningElection, loggedInUserName) {
 function getCandidatesWithVotes(runningElection) {
     return new Promise(async resolve => {
         connection.query(
-            `SELECT c.candidate, COUNT(v.elected) as votes
+            `SELECT c.id AS candidate_id, c.candidate, COUNT(v.id) AS votes
             FROM candidates c
-            LEFT JOIN votes v ON c.candidate = v.elected
-            WHERE c.nr_election = '${runningElection.id}'
-            GROUP BY c.candidate`,
+            LEFT JOIN votes v ON c.candidate = v.elected AND c.nr_election = v.nr_election
+            WHERE c.nr_election = ${runningElection.id}
+            GROUP BY c.id, c.candidate`,
             function (err, res) {
                 if (err) {
                     throw err;
@@ -164,8 +161,6 @@ function getVoterLastVoteDate(voterName) {
                 if (err) {
                     throw err;
                 } else {
-                    console.log(res);
-                    console.log("ultimul vot a user-ului care a votat:", res[0]);
                     resolve(res[0]);
                 }
             }

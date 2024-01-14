@@ -1,0 +1,91 @@
+<!-- Display Pop-up message (only if there is one) -->
+<% if (typeof message !== 'undefined') { %>
+    <% if (message == 'Presidency election started.') { %>
+        <div class="alert alert-success" style="height: 50px">
+            <%= message %>
+        </div>
+    <% } else if (message == 'No election running right now!' || message == 'Election start date can not be in the past!' || message == 'Election duration can not be less than 7 days!' || message == 'An existing election is already running!' || message == 'An election is already scheduled for the future!') { %>
+        <div class="alert alert-danger" style="height: 50px">
+            <%= message %>
+        </div>
+    <% } %>
+<% } %>
+
+<div class="card" style="border-radius: 15px;">
+    <!-- Display user name -->
+    <h3 class="text-center mb-3"> <%= loggedInUserInfo.name %> </h3>
+    <hr>
+    <!-- Admin profile -->
+    <% if (loggedInUserInfo.role == 'admin') { %>
+        <% if (isRunningElection == false || typeof isRunningElection == 'undefined') { %>
+            <div class="d-flex justify-content-center">
+                <input disabled type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+            </div>
+        <% } else { %>
+            <form action="/users/election-candidates" method="GET">
+                <div class="d-flex justify-content-center">
+                    <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+                </div>
+            </form>
+        <% } %>
+        <hr>
+        <div class="container">
+            <h4 class="text-center mb-3">Create election</h4>
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <form action="/users/president/elections" method="POST">
+                        <div class="form-group text-center">
+                            <label for="start">Start Date</label>
+                            <input type="datetime-local" class="form-control" id="start" name="startDateElection" required>
+                        </div>
+                        <div class="form-group text-center">
+                            <label for="finish">End Date</label>
+                            <input type="datetime-local" class="form-control" id="finish" name="finishDateElection" required>
+                        </div>
+                        <div class="form-group text-center" style="margin-top: 10px;">
+                            <input type="submit" class="btn btn-success gradient-custom-4 text-body" value="Save">
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <% } else { %>
+        <!-- User profile -->
+        <!-- If there is no running election => do not let the user to Run for president or see Presidential candidates -->
+        <% if (isRunningElection == false || typeof isRunningElection == 'undefined') { %>
+            <div class="d-flex justify-content-center">
+                <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+            </div>
+            <div class="d-flex justify-content-center mt-2">
+                <input disabled type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+            </div>
+        <% } else { %>
+            <!-- If there is an election running, check if the user is already running in the current election -->
+            <% if (isCurrentCandidate == true) { %>
+                <div class="d-flex justify-content-center">
+                    <input disabled class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                </div>
+            <% } else { %>
+                <form action="/users/president/run" method="POST">
+                    <div class="d-flex justify-content-center">
+                        <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Run for president">
+                    </div>
+                </form>
+            <% } %>
+
+            <form action="/users/election-candidates" method="GET">
+                <div class="d-flex justify-content-center mt-2">
+                    <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Presidential candidates">
+                </div>
+            </form>
+        <% } %>
+
+        <form action="/users/votes/history" method="GET">
+            <div class="d-flex justify-content-center mt-2">
+                <input type="submit" class="btn btn-success btn-block btn-lg gradient-custom-4 text-body" value="Vote history">
+            </div>
+        </form>
+    <% } %>
+</div>
+
+<%- include('partials/bottom-buttons.ejs') %>
