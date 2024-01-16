@@ -2,6 +2,7 @@ const db_connection = require('./connection.js');
 const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
 
+// Register User
 function createUser(name, email, password) {
     // Object to store predefined emails and their corresponding roles
     const predefineAdmindEmails = {
@@ -15,7 +16,7 @@ function createUser(name, email, password) {
 
     /* Promise = object who represents the completion or failure of an async operation and its resulting value. */
     return new Promise(async (resolve, reject) => {
-        await connection.query(
+        connection.query(
             `INSERT INTO users(name, email, password, role)
             VALUES(?, ?, ?, ?)`,
             [name, email, password, role],
@@ -25,38 +26,44 @@ function createUser(name, email, password) {
                         reject("The name and/or the email is already taken!");
                     }
                 } else {
-                    resolve("Account successfully created!");
+                    resolve("Account successfully created.");
                 }
             }
         );
     });
 }
 
+// Login User
 function loginUser(email, password) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
         // Prevent SQL Injection with Parameterized Queries
-        await connection.query(
+        connection.query(
             `SELECT *
             FROM users
             WHERE email = ? AND password = ?`,
             [email, password],
             (error, result) => {
-                if (result.length === 0) {
-                    reject("User not found!");
+                if (error) {
+                    reject(error);
                 } else {
-                    console.log("logged-in user data:", result[0]);
-                    resolve(result[0]);
+                    if (result.length === 0) {
+                        reject("User not found!");
+                    } else {
+                        resolve(result[0]);
+                    }
                 }
             }
         );
     });
 }
 
+// Check if there is a current running election right at this time
 function checkIfRunningElection() {
-    return new Promise(async (resolve, reject) => {
-        await connection.query(
-            `SELECT * FROM
-            elections WHERE NOW() BETWEEN start AND stop`,
+    return new Promise((resolve, reject) => {
+        connection.query(
+            `SELECT *
+            FROM elections
+            WHERE NOW() BETWEEN start AND stop`,
             function(error, result) {
                 if (error) {
                     throw error;
@@ -75,8 +82,8 @@ function checkIfRunningElection() {
 
 // Check if an election is already scheduled for the future (and haven't already started)
 function checkIfFutureElectionScheduled() {
-    return new Promise(async (resolve, reject) => {
-        await connection.query(
+    return new Promise((resolve, reject) => {
+        connection.query(
             `SELECT *
             FROM elections
             WHERE start > NOW()`,
@@ -84,8 +91,11 @@ function checkIfFutureElectionScheduled() {
                 if (err) {
                     throw err;
                 } else {
-                    if (res.length === 0) reject(false)
-                    else resolve(res[0])
+                    if (res.length === 0) {
+                        reject(false)
+                    } else {
+                        resolve(res[0]);
+                    }
                 }
             }
         );
@@ -93,8 +103,8 @@ function checkIfFutureElectionScheduled() {
 }
 
 function checkIfCurrentCandidate(loggedInUserData, currentRunningElection) {
-    return new Promise(async (resolve, reject) => {
-        await connection.query(
+    return new Promise((resolve, reject) => {
+        connection.query(
             `SELECT * FROM candidates
             WHERE (candidate = '${loggedInUserData.name}' AND nr_election = ${currentRunningElection.id})`,
             function(err, res) {
@@ -141,7 +151,6 @@ function getCandidatesWithVotes(runningElection) {
                 if (err) {
                     throw err;
                 } else {
-                    console.log("all candidates with votes from current running election:", res);
                     resolve(res);
                 }
             }
@@ -184,42 +193,20 @@ function saveVote(electionId, voter, elected) {
     });
 }
 
-function getUserVoteHistory(loggedInUser) {
+// Get all the votes from the elections where the specific user participated in (where he voted)
+function getUserVoteHistory(loggedInUserData) {
     return new Promise(async resolve => {
         connection.query(
             `SELECT v.voter, e.id AS election_id, e.start AS election_start, e.stop AS election_stop, v.vote_date, v.elected
             FROM votes v
             JOIN elections e ON v.nr_election = e.id
-            WHERE v.voter = '${loggedInUser}'
+            WHERE v.voter = '${loggedInUserData.name}'
             ORDER BY e.start`,
             function(err, res) {
                 if (err) {
                     throw err;
                 } else {
-                    console.log("all user votes in all elections made:", res);
                     resolve(res);
-                }
-            }
-        );
-    });
-}
-
-// For Admin only
-function createElection(startPresidency, stopPresidency) {
-    // Format dates as strings in the "YYYY-MM-DD HH:mm:ss" format
-    const startPresidencyFormatted = startPresidency.toISOString().slice(0, 19).replace("T", " ");
-    const stopPresidencyFormatted = stopPresidency.toISOString().slice(0, 19).replace("T", " ");
-
-    return new Promise(async resolve => {
-        connection.query(
-            `INSERT INTO elections (start, stop)
-            VALUES (?, ?)`,
-            [startPresidencyFormatted, stopPresidencyFormatted],
-            (err) => {
-                if (err) {
-                    throw err;
-                } else {
-                    resolve(true);
                 }
             }
         );
@@ -239,7 +226,6 @@ function getElectedsWithVotesFromAllElections() {
                 if (err) {
                     throw err;
                 } else {
-                    console.log("all electeds with votes (sorted by votes) from all elections:", res);
                     resolve(res);
                 }
             }
@@ -247,17 +233,18 @@ function getElectedsWithVotesFromAllElections() {
     });
 }
 
-// Get all elections made in the system
-function getAllElections() {
+// For Admin only
+function createElection(startPresidency, stopPresidency) {
     return new Promise(async resolve => {
         connection.query(
-            `SELECT *
-            FROM elections`,
-            function(err, res) {
+            `INSERT INTO elections (start, stop)
+            VALUES (?, ?)`,
+            [startPresidency, stopPresidency],
+            (err) => {
                 if (err) {
                     throw err;
                 } else {
-                    resolve(res);
+                    resolve(true);
                 }
             }
         );

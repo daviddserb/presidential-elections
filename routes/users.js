@@ -13,7 +13,13 @@ router.get('/pop-up-message', async (req, res) => {
     let messages = req.flash('message');
     // Sometimes req.flash saves a message multiple times (as a BUG) => select the last one (as a work-around)
     let lastMessage = messages[messages.length - 1] + '';
-    console.log('lastMessage:', lastMessage);
+
+    const registerMessages = ["Account successfully created.", "The name and/or the email is already taken!"];
+    const loginMessages = ["User not found!"];
+    if (registerMessages.includes(lastMessage) || loginMessages.includes(lastMessage)) {
+        res.render('home', {message: lastMessage});
+        return;
+    }
 
     try {
         var isRunningElection = false;
@@ -30,12 +36,11 @@ router.get('/pop-up-message', async (req, res) => {
             var allCandidatesWithVotes = await db_users.getCandidatesWithVotes(runningElection);
         }
     } catch (exception) {
-        console.log("msg - exception:", exception);
+        throw exception;
     }
 
-    if (lastMessage == 'Account successfully created.' || lastMessage == 'The name and/or the email is already taken!' || lastMessage == 'User not found!') {
-        res.render('home', {message: lastMessage});
-    } else if (lastMessage == 'No election running right now!' || lastMessage == 'Presidency election started.' || lastMessage == 'Election start date can not be in the past!' || lastMessage == 'Election duration can not be less than 7 days!' || lastMessage == 'An existing election is already running!' || lastMessage == 'An election is already scheduled for the future!') {
+    const createElectionMessages = [lastMessage == "Presidency election started.", "Election start date can not be in the past!", "Election duration can not be less than 7 days!", "An existing election is already running!", "An election is already scheduled for the future!"];
+    if (lastMessage == 'No election running right now!' || createElectionMessages.includes(createElectionMessages)) {
         res.render('profile', {loggedInUserInfo: req.session.loggedInUserInfo, isRunningElection: isRunningElection, isCurrentCandidate: isCurrentCandidate, message: lastMessage});
     } else if (lastMessage == 'You can only vote once per day.' || lastMessage == 'You can not vote yourself!') {
         res.render('electionCandidates', {loggedInUserData: req.session.loggedInUserInfo, candidatesWithVotes: allCandidatesWithVotes, message: lastMessage});
@@ -96,7 +101,6 @@ router.get('/profile', async (req, res) => {
                 }
             }
         } catch (error) {
-            console.log("profile - error:", error);
             var message = error;
         }
     }
@@ -118,7 +122,7 @@ router.post("/president/run", async (req, res) => {
             }
         }
     } catch (exception) {
-        console.log("president run - exception:", exception);
+        throw exception;
     }
 });
 
@@ -131,7 +135,7 @@ router.get('/election-candidates', async (req, res) => {
 
         res.render('electionCandidates', {loggedInUserData: loggedInUserData, candidatesWithVotes: allCandidatesWithVotes});
     } catch (error) {
-        console.log("candidates - error:", error);
+        throw exception;
     }
 });
 
@@ -179,8 +183,9 @@ router.post("/user/:id/vote", async (req, res) => {
 router.get('/votes/history', async (req, res) => {
     const loggedInUserData = req.session.loggedInUserInfo;
 
-    const userVoteHistory = await db_users.getUserVoteHistory(loggedInUserData.name);
-    // Initialize an empty dictionary
+    const userVoteHistory = await db_users.getUserVoteHistory(loggedInUserData);
+
+    // Make dictionary for userVoteHistory:
     const userVoteHistoryDict = {};
     // Iterate through the query result and populate the dictionary
     userVoteHistory.forEach(row => {
@@ -201,12 +206,11 @@ router.get('/votes/history', async (req, res) => {
             election_stop: row.election_stop
         });
     });
-    console.log("userVoteHistoryDict:", userVoteHistoryDict);
 
+    // TODO: sa ma reuit peste getElectedsWithVotesFromAllElections si sa vad daca pot modifica numele sau sa dau detalii mai bune
     const electedsWithVotes = await db_users.getElectedsWithVotesFromAllElections();
     // The winners from all elections made (one winner per election)
     const electionWinners = getFirstRowForEachElection(electedsWithVotes);
-    console.log("winners from all elections:", electionWinners);
 
     res.render('votesHistory', {loggedInUserName: loggedInUserData.name, userVoteHistoryDict: userVoteHistoryDict, electionWinners: electionWinners});
 });
@@ -259,7 +263,7 @@ router.post("/president/elections", async (req, res) => {
         // No election is scheduled for the future
     }
 
-    if (await db_users.createElection(startDateElection, finishDateElection) == true) {
+    if (await db_users.createElection(formatDate(startDateElection), formatDate(finishDateElection)) == true) {
         req.flash('message', 'Presidency election started.');
         res.redirect('../pop-up-message');
     }
@@ -270,7 +274,7 @@ async function userCanVote(voter, elected) {
         const runningElection = await db_users.checkIfRunningElection();
         await db_users.saveVote(runningElection.id, voter, elected);
     } catch (exception) {
-        console.log("usercanvote - exception:", exception);
+        throw exception;
     }
 }
 

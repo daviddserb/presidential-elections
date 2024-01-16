@@ -22,10 +22,11 @@
                         </li>
                     <% }) %>
                 </ul>
-                <!-- Display the winner only for the finished elections-->
+                <!-- Finished elections - print winner candidate (president) -->
                 <% if (electionWinners.hasOwnProperty(currentNrElection) && currentElectionStopDate < currentDate) { %>
-                    <p style="text-align: center; color: green;"> <b>PRESIDENT:</b> <%= electionWinners[currentNrElection].elected %> ~ <%= electionWinners[currentNrElection].total_votes %> total votes</p>
-                  <% } %>
+                    <p> WINNER ELECTION: <%= electionWinners[currentNrElection].elected %> ~ <%= electionWinners[currentNrElection].total_votes %> total votes</p>
+                <% } %>
+
                 <% ++electionCnt %>
             <% }) %>
         <% } %>
