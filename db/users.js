@@ -2,8 +2,7 @@ const db_connection = require('./connection.js');
 const createConnection = db_connection.createConnection();
 const connection = createConnection[0];
 
-// Register User
-function createUser(name, email, password) {
+function registerUser(name, email, password) {
     // Object to store predefined emails and their corresponding roles
     const predefineAdmindEmails = {
         "daviddserb@yahoo.com": 'admin',
@@ -15,7 +14,7 @@ function createUser(name, email, password) {
     const role = predefineAdmindEmails[email];
 
     /* Promise = object who represents the completion or failure of an async operation and its resulting value. */
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
         connection.query(
             `INSERT INTO users(name, email, password, role)
             VALUES(?, ?, ?, ?)`,
@@ -33,7 +32,6 @@ function createUser(name, email, password) {
     });
 }
 
-// Login User
 function loginUser(email, password) {
     return new Promise((resolve, reject) => {
         // Prevent SQL Injection with Parameterized Queries
@@ -71,7 +69,6 @@ function checkIfRunningElection() {
                     if (result.length === 0) {
                         reject("No election running right now!");
                     } else {
-                        // An existing election is already running right now
                         resolve(result[0]);
                     }
                 }
@@ -123,15 +120,15 @@ function checkIfCurrentCandidate(loggedInUserData, currentRunningElection) {
 }
 
 function saveCandidate(currentRunningElection, loggedInUserData) {
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
         connection.query(
             "INSERT INTO candidates(nr_election, candidate)" +
             "VALUES ('"+ currentRunningElection.id +"', '"+ loggedInUserData.name +"')",
             (err, res) => {
                 if (err) {
-                    throw err;
+                    reject(false);
                 } else {
-                    resolve("Successfully running for presidency!");
+                    resolve(true);
                 }
             }
         );
@@ -140,7 +137,7 @@ function saveCandidate(currentRunningElection, loggedInUserData) {
 
 // Get all candidates with their votes from current running election
 function getCandidatesWithVotes(runningElection) {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
         connection.query(
             `SELECT c.id AS candidate_id, c.candidate, COUNT(v.id) AS votes
             FROM candidates c
@@ -159,7 +156,7 @@ function getCandidatesWithVotes(runningElection) {
 }
 
 function getVoterLastVoteDate(voterName) {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
         connection.query(
             `SELECT vote_date
             FROM votes
@@ -178,7 +175,7 @@ function getVoterLastVoteDate(voterName) {
 }
 
 function saveVote(electionId, voter, elected) {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
         connection.query(
             "INSERT INTO votes (nr_election, voter, elected)" +
             "VALUES ('"+  electionId +"', '"+  voter.name +"', '"+ elected +"')",
@@ -193,9 +190,9 @@ function saveVote(electionId, voter, elected) {
     });
 }
 
-// Get all the votes from the elections where the specific user participated in (where he voted)
+// Get all user's votes
 function getUserVoteHistory(loggedInUserData) {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
         connection.query(
             `SELECT v.voter, e.id AS election_id, e.start AS election_start, e.stop AS election_stop, v.vote_date, v.elected
             FROM votes v
@@ -213,14 +210,14 @@ function getUserVoteHistory(loggedInUserData) {
     });
 }
 
-// Get the electeds with their votes from all elections
-// The first elected from each election (in the result of the query) is the president (the winner of that election), because it is sorted by the total votes
-function getElectedsWithVotesFromAllElections() {
-    return new Promise(async resolve => {
+// Get all electeds with their total votes from all elections
+// Query result: the first row from each election is the winner of the election (because of the ordering)
+function getElectedsWithTotalVotesFromAllElections() {
+    return new Promise(resolve => {
         connection.query(
             `SELECT nr_election, elected, COUNT(*) AS total_votes
             FROM votes
-            GROUP BY elected
+            GROUP BY nr_election, elected
             ORDER BY nr_election, total_votes DESC`,
             function(err, res) {
                 if (err) {
@@ -235,7 +232,7 @@ function getElectedsWithVotesFromAllElections() {
 
 // For Admin only
 function createElection(startPresidency, stopPresidency) {
-    return new Promise(async resolve => {
+    return new Promise(resolve => {
         connection.query(
             `INSERT INTO elections (start, stop)
             VALUES (?, ?)`,
@@ -252,7 +249,7 @@ function createElection(startPresidency, stopPresidency) {
 }
 
 module.exports = {
-    createUser,
+    registerUser,
     loginUser,
     createElection,
     checkIfRunningElection,
@@ -263,6 +260,5 @@ module.exports = {
     getVoterLastVoteDate,
     saveVote,
     getUserVoteHistory,
-    getElectedsWithVotesFromAllElections,
-    getAllElections
+    getElectedsWithTotalVotesFromAllElections,
 };

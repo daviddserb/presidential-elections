@@ -1,10 +1,10 @@
 <!-- Display Pop-up message (only if there is one) -->
 <% if (typeof message !== 'undefined') { %>
-    <% if (message == 'Presidency election started.') { %>
+    <% if (message.includes('.')) { %>
         <div class="alert alert-success" style="height: 50px">
             <%= message %>
         </div>
-    <% } else if (message == 'No election running right now!' || message == 'Election start date can not be in the past!' || message == 'Election duration can not be less than 7 days!' || message == 'An existing election is already running!' || message == 'An election is already scheduled for the future!') { %>
+    <% } else if (message.includes('!')) { %>
         <div class="alert alert-danger" style="height: 50px">
             <%= message %>
         </div>
