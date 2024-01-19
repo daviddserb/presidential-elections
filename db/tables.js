@@ -41,8 +41,8 @@ function createTablesInDatabase() {
     const createCandidatesTableQuery = 
     `CREATE TABLE IF NOT EXISTS candidates(
         id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         candidate VARCHAR(100),
+        nr_election INT UNSIGNED,
         FOREIGN KEY (nr_election) REFERENCES elections(id),
         FOREIGN KEY (candidate) REFERENCES users(name)
     )`;
