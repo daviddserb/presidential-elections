@@ -1,9 +1,33 @@
-# PresidentialElections
+# Presidential Elections
 
-Presidential Elections is a web application designed to empower users to participate as presidential candidates. The application encompasses a range of features that empower administrators to initiate elections, facilitating users in their pursuit of the presidency while ensuring eligibility in the voting process.
+Presidential Elections is a web application that empowers users to participate as presidential candidates.
+Users possess the ability to actively engage in the electoral process by participating in elections, reviewing candidates, casting votes, and accessing their voting history.
 
-Furthermore, the application establishes a comprehensive vote tracking system, enabling users to submit a single vote per day, with the exception of self-votes. This mechanism ensures a fair and transparent electoral process.
+Try the web application live: https://presidential-elections-048107c7ab4a.herokuapp.com/
 
-Additionally, users are provided with the capability to review their complete voting history, and also the winner of each presidential election from every campaign
+How it functions:
+- You need to register an account to use the application.
+- If the admin has started the election, you can run for president and get votes.
+- To test the admin functionality, log in with this account (email | password): admin@yahoo.com | admin123EWQ
 
 Technologies used: Node.js, Express.js, JavaScript, SQL, HTML, CSS, and Bootstrap.
+
+Home page:
+
+![image](https://github.com/daviddserb/presidential-elections/assets/83017887/836c8278-c125-48bd-aec1-ccd770cd7f70)
+
+Admin page:
+
+![image](https://github.com/daviddserb/presidential-elections/assets/83017887/324a280f-533f-48ed-aab8-7fcdaa340b43)
+
+User page:
+
+![image](https://github.com/daviddserb/presidential-elections/assets/83017887/f80c3a37-c38f-4458-a66e-38a27790b5d3)
+
+Election page:
+
+![image](https://github.com/daviddserb/presidential-elections/assets/83017887/a21754a3-a2a0-4a18-9a31-40fe05c162b8)
+
+Vote history page:
+
+![image](https://github.com/daviddserb/presidential-elections/assets/83017887/a1d0f57e-7a91-42e0-b07e-e1477a73d08a)
