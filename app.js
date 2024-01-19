@@ -8,7 +8,7 @@ var logger = require('morgan');
 var cookieSession = require('cookie-session');
 var flash = require('connect-flash');
 
-// For the logged-in user information - to store it on the server-side
+// For storing data on the server-side
 var expressSession = require('express-session');
 
 // For express ejs layours
@@ -32,16 +32,16 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // For pop-up messages
 app.use(cookieSession({
-    secret: 'secret-cookieSession',
+    secret: 'secret-cookie-session',
     saveUninitialized: true,
     resave: false
 }));
 app.use(flash());
 
-// To get the logged-in user information
+// Set up your session middleware
 app.use(expressSession({
-    secret: 'secret-expressSession',
-    saveUninitialized: false,
+    secret: 'secret-express-session',
+    saveUninitialized: true,
     resave: false
 }));
 

@@ -212,7 +212,7 @@ function getUserVoteHistory(loggedInUserData) {
 
 // Get all electeds with their total votes from all elections
 // Query result: the first row from each election is the winner of the election (because of the ordering)
-function getElectedsWithTotalVotesFromAllElections() {
+function getElectedsWithCntVotesInAllElections() {
     return new Promise(resolve => {
         connection.query(
             `SELECT nr_election, elected, COUNT(*) AS total_votes
@@ -260,5 +260,5 @@ module.exports = {
     getVoterLastVoteDate,
     saveVote,
     getUserVoteHistory,
-    getElectedsWithTotalVotesFromAllElections,
+    getElectedsWithCntVotesInAllElections,
 };

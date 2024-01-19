@@ -15,38 +15,18 @@ router.get('/pop-up-message', async (req, res) => {
     let messages = req.flash('message');
     // Sometimes req.flash saves a message multiple times (as a BUG) => select the last one (as a work-around) and convert it to string
     let lastMessage = messages[messages.length - 1] + '';
-
-    var isRunningElection = false;
-    var isCurrentCandidate = false;
     
-    var createElectionMessages = ["Presidency election started.", "Election start date can not be in the past!", `Election duration can not be less than ${minElectionDuration} days!`, "An existing election is already running!"];
+    var electionMessages = ["Presidency election started.", "No election running right now!", "Election start date can not be in the past!", `Election duration can not be less than ${minElectionDuration} days!`, "An existing election is already running!"];
     var voteMessages = ["You can only vote once per day!", "You can not vote yourself!"];
 
-    try {
-        const runningElection = await db_users.checkIfRunningElection();
-        isRunningElection = true;
-
-        var allCandidatesWithVotes = await db_users.getCandidatesWithVotes(runningElection);
-    } catch (exception) {
+    if (req.session.futureElection != null) {
+        electionMessages.push(`Election already scheduled: ${formatDate(req.session.futureElection.start)} - ${formatDate(req.session.futureElection.stop)}!`);
     }
 
-    try {
-        await db_users.checkIfCurrentCandidate(req.session.loggedInUserInfo, runningElection);
-        isCurrentCandidate = true;
-    } catch (exception) {
-    }
-
-    try {
-        const futureElection = await db_users.checkIfFutureElectionScheduled();
-        createElectionMessages.push(`Election already scheduled: ${formatDate(futureElection.start)} - ${formatDate(futureElection.stop)}!`);
-    } catch (exception) {
-    }
-
-    if (lastMessage == "No election running right now!" || createElectionMessages.includes(lastMessage)) {
-        res.render('profile', {loggedInUserInfo: req.session.loggedInUserInfo, isRunningElection: isRunningElection, isCurrentCandidate: isCurrentCandidate, message: lastMessage});
+    if (electionMessages.includes(lastMessage)) {
+        res.render('profile', {loggedInUserInfo: req.session.loggedInUserInfo, isRunningElection: req.session.isRunningElection, isCurrentCandidate: req.session.isCurrentCandidate, message: lastMessage});
     } else if (voteMessages.includes(lastMessage)) {
-        console.log(lastMessage)
-        res.render('electionCandidates', {loggedInUserData: req.session.loggedInUserInfo, candidatesWithVotes: allCandidatesWithVotes, message: lastMessage});
+        res.render('electionCandidates', {loggedInUserData: req.session.loggedInUserInfo, candidatesWithVotes: req.session.allCandidatesWithVotes, message: lastMessage});
     }
 });
 
@@ -55,7 +35,7 @@ router.post('/register', async function (req, res) {
     const email = req.body.inputEmail;
     const password = req.body.inputPassword;
 
-    // One method to call async functions - try catch block and use async await
+    // One method to call async functions - try catch block with async await
     try {
         // Await the registerUser() function because it is an async function (DB call)
         // So we have to wait it in order for the Promise to be completed (and not pending, for example)
@@ -70,7 +50,7 @@ router.post('/login', (req, res) => {
     const email = req.body.accountEmail;
     const password = req.body.accountPassword;
 
-    // Second method to call async functions - then catch block
+    // Another method to call async functions - then catch block
     db_users.loginUser(email, password)
     .then((result) => {
         // req is a HTTP request made by the client (web browser) to the server (Node.js).
@@ -85,48 +65,50 @@ router.post('/login', (req, res) => {
 });
 
 router.get('/profile', async (req, res) => {
-    const loggedInUserData = req.session.loggedInUserInfo;
-
     try {
         // Check if there is a running election
-        const runningElection = await db_users.checkIfRunningElection();
-        var isRunningElection = true;
+        req.session.runningElection = await db_users.checkIfRunningElection();
+        req.session.isRunningElection = true;
 
-        if (loggedInUserData.role != 'admin') {
+        if (req.session.loggedInUserInfo.role != 'admin') {
             // Check if the logged-in user is a candidate in the current running election
-            await db_users.checkIfCurrentCandidate(loggedInUserData, runningElection);
-            var isCurrentCandidate = true;
+            req.session.currentCandidate = await db_users.checkIfCurrentCandidate(req.session.loggedInUserInfo, req.session.runningElection);
+            req.session.isCurrentCandidate = true;
         }
     } catch (error) {
         var message = error;
     }
 
-    res.render('profile', {loggedInUserInfo: loggedInUserData, isRunningElection: isRunningElection, isCurrentCandidate: isCurrentCandidate, message: message});
+    res.render('profile', {
+        loggedInUserInfo: req.session.loggedInUserInfo,
+        isRunningElection: req.session.isRunningElection,
+        isCurrentCandidate: req.session.isCurrentCandidate,
+        message: message
+    });
+});
+
+router.get('/logout', (req, res) => {
+    req.session = null; // Delete the cookie
+    res.redirect('/'); // Redirect to home page
 });
 
 router.post("/president/run", async (req, res) => {
-    const loggedInUserData = req.session.loggedInUserInfo;
-
     try {
-        const runningElection = await db_users.checkIfRunningElection();
-
-        await db_users.saveCandidate(runningElection, loggedInUserData);
+        await db_users.saveCandidate(req.session.runningElection, req.session.loggedInUserInfo);
         res.redirect('/users/election-candidates');
     } catch (exception) {
-        throw exception;
     }
 });
 
 router.get('/election-candidates', async (req, res) => {
-    const loggedInUserData = req.session.loggedInUserInfo;
     try {
-        const runningElection = await db_users.checkIfRunningElection();
+        req.session.allCandidatesWithVotes = await db_users.getCandidatesWithVotes(req.session.runningElection);
 
-        const allCandidatesWithVotes = await db_users.getCandidatesWithVotes(runningElection);
-
-        res.render('electionCandidates', {loggedInUserData: loggedInUserData, candidatesWithVotes: allCandidatesWithVotes});
+        res.render('electionCandidates', {
+            loggedInUserData: req.session.loggedInUserInfo,
+            candidatesWithVotes: req.session.allCandidatesWithVotes
+        });
     } catch (error) {
-        throw exception;
     }
 });
 
@@ -172,14 +154,17 @@ router.post("/user/:id/vote", async (req, res) => {
 });
 
 router.get('/votes/history', async (req, res) => {
-    const loggedInUserData = req.session.loggedInUserInfo;
+    const userVoteHistory = await db_users.getUserVoteHistory(req.session.loggedInUserInfo);
+    const userVoteHistoryDict = userVoteHistoryToDict(userVoteHistory);
 
-    const userVoteHistoryDict = userVoteHistoryToDict();
+    const electedsWithVotes = await db_users.getElectedsWithCntVotesInAllElections();
+    const electionWinnersDict = getElectionsPresident(electedsWithVotes);
 
-    const electedsWithVotes = await db_users.getElectedsWithTotalVotesFromAllElections();
-    const electionWinners = getFirstRowForEachElection(electedsWithVotes);
-
-    res.render('votesHistory', {loggedInUserName: loggedInUserData.name, userVoteHistoryDict: userVoteHistoryDict, electionWinners: electionWinners});
+    res.render('votesHistory', {
+        loggedInUserName: req.session.loggedInUserInfo.name,
+        userVoteHistoryDict: userVoteHistoryDict,
+        electionWinners: electionWinnersDict
+    });
 });
 
 // For Admin only - create election
@@ -206,23 +191,20 @@ router.post("/president/elections", async (req, res) => {
     }
 
     // Validation: Cannot create a new election if an election is already running
-    try {
-        await db_users.checkIfRunningElection();
+    if (req.session.runningElection != null) {
         req.flash('message', "An existing election is already running!");
         res.redirect('../pop-up-message');
         return;
-    } catch (error) {
-        // No election is running right now
     }
 
     // Validation: Cannot create a new election if an election is scheduled for the future
     try {
-        const futureElection = await db_users.checkIfFutureElectionScheduled();
-        req.flash('message', `Election already scheduled: ${formatDate(futureElection.start)} - ${formatDate(futureElection.stop)}!`);
+        req.session.futureElection = await db_users.checkIfFutureElectionScheduled();
+
+        req.flash('message', `Election already scheduled: ${formatDate(req.session.futureElection.start)} - ${formatDate(req.session.futureElection.stop)}!`);
         res.redirect('../pop-up-message');
         return;
     } catch (error) {
-        // No election is scheduled for the future
     }
 
     if (await db_users.createElection(formatDate(startDateElection), formatDate(finishDateElection)) == true) {
@@ -233,26 +215,26 @@ router.post("/president/elections", async (req, res) => {
 
 async function userCanVote(voter, elected) {
     try {
-        const runningElection = await db_users.checkIfRunningElection();
-        await db_users.saveVote(runningElection.id, voter, elected);
+        await db_users.saveVote(req.session.runningElection.id, voter, elected);
     } catch (exception) {
-        throw exception;
     }
 }
 
-// date should be of type DateTime and will be returned as formatted string
 function formatDate(date) {
+    // If date is string data type => convert it to Date
+    if (typeof date === "string") {
+        let dateObject = new Date(date);
+        return dateObject.toISOString().replace(/T/, ' ').replace(/\..+/, '');
+    }
+
     return date.toISOString().replace(/T/, ' ').replace(/\..+/, '');
 }
 
-async function userVoteHistoryToDict() {
-    const userVoteHistory = await db_users.getUserVoteHistory(req.session.loggedInUserInfo);
-
-    // Make dictionary for userVoteHistory:
+function userVoteHistoryToDict(userVoteHistory) {
     const userVoteHistoryDict = {};
-    // Iterate through the query result and populate the dictionary
+
     userVoteHistory.forEach(row => {
-        // Create the composed key for the dictionary
+        // Create the composed key for dict
         const dictKey = `${formatDate(row.election_start)} ~ ${formatDate(row.election_stop)}`;
 
         // Check if the dictKey is already a key in the dictionary
@@ -261,7 +243,6 @@ async function userVoteHistoryToDict() {
             userVoteHistoryDict[dictKey] = [];
         }
 
-        // Save the current row into the array corresponding to the dictKey
         userVoteHistoryDict[dictKey].push({
             nr_election: row.election_id,
             elected: row.elected,
@@ -274,7 +255,7 @@ async function userVoteHistoryToDict() {
 }
 
 // Function to get only the first row for each nr_election (so the result will be the winner from each election)
-const getFirstRowForEachElection = (electedsWithVotes) => {
+const getElectionsPresident = (electedsWithVotes) => {
     const firstRowsDict = {};
 
     electedsWithVotes.forEach((row) => {

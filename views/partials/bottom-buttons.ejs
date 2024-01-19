@@ -1,4 +1,6 @@
 <div class="bottom-buttons">
     <button onclick="history.go(-1)">Back</button>
-    <button onclick="location.href='/'">Log out</button>
+    <form action="/users/logout" method="GET">
+        <button type="submit">Log out</button>
+    </form>
 </div>
