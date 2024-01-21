@@ -116,10 +116,10 @@ router.post("/user/:id/vote", async (req, res) => {
     // The user who voted (it only can be the logged in user)
     const voter = req.session.loggedInUserInfo;
     // The name of the user who got voted
-    const votedCandidate = req.params.id;
+    const elected = req.params.id;
 
     // Validation: User cannot vote himself
-    if (voter.name === votedCandidate) {
+    if (voter.name === elected) {
         req.flash('message', 'You can not vote yourself!');
         res.redirect('../../pop-up-message');
         return;
@@ -129,7 +129,7 @@ router.post("/user/:id/vote", async (req, res) => {
     const voterLastVoteDate = await db_users.getVoterLastVoteDate(voter.name);
     // Case 1: Voter has not voted at all (never) until now => CAN VOTE
     if (!voterLastVoteDate) {
-        await userCanVote(voter, votedCandidate);
+        await db_users.saveVote(req.session.runningElection.id, voter, elected);
         res.redirect('back');
     // Case 2: Voter has voted before => check if ONE DAY has passed since HIS LAS VOTE
     } else {
@@ -143,7 +143,7 @@ router.post("/user/:id/vote", async (req, res) => {
         
         // Case 2.1: A day has passed since the last vote => CAN VOTE
         if (timeDifference >= oneDayInMilliseconds) {
-            await userCanVote(voter, votedCandidate);
+            await db_users.saveVote(req.session.runningElection.id, voter, elected);
             res.redirect('back'); // Redirect to the same URL to restart the page so the data will be updated
         // Case 2.2: Less than a day has passed since the last vote => CANNOT VOTE
         } else {
@@ -212,13 +212,6 @@ router.post("/president/elections", async (req, res) => {
         res.redirect('../pop-up-message');
     }
 });
-
-async function userCanVote(voter, elected) {
-    try {
-        await db_users.saveVote(req.session.runningElection.id, voter, elected);
-    } catch (exception) {
-    }
-}
 
 function formatDate(date) {
     // If date is string data type => convert it to Date
