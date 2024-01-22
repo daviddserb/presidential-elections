@@ -1,9 +1,9 @@
 # Presidential Elections
 
+Try the web application live: https://presidential-elections-048107c7ab4a.herokuapp.com/
+
 Presidential Elections is a web application that empowers users to participate as presidential candidates.
 Users possess the ability to actively engage in the electoral process by participating in elections, reviewing candidates, casting votes, and accessing their voting history.
-
-Try the web application live: https://presidential-elections-048107c7ab4a.herokuapp.com/
 
 How it functions:
 - You need to register an account to use the application.
