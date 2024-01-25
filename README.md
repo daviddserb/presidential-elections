@@ -6,7 +6,6 @@ Users possess the ability to actively engage in the electoral process by partici
 How it functions:
 - You need to register an account to use the application.
 - If the admin has started the election, you can run for president and get votes.
-- To test the admin functionality, log in with this account (email | password): admin@yahoo.com | admin123EWQ
 
 Technologies used: Node.js, Express.js, JavaScript, SQL, HTML, CSS, and Bootstrap.
 
