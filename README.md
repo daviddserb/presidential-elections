@@ -13,18 +13,18 @@ Home page:
 
 ![image](https://github.com/daviddserb/presidential-elections/assets/83017887/836c8278-c125-48bd-aec1-ccd770cd7f70)
 
-Admin page:
+Admin - profile page:
 
 ![image](https://github.com/daviddserb/presidential-elections/assets/83017887/324a280f-533f-48ed-aab8-7fcdaa340b43)
 
-User page:
+User - profile page:
 
 ![image](https://github.com/daviddserb/presidential-elections/assets/83017887/f80c3a37-c38f-4458-a66e-38a27790b5d3)
 
-Election page:
+User - running candidates page:
 
 ![image](https://github.com/daviddserb/presidential-elections/assets/83017887/a21754a3-a2a0-4a18-9a31-40fe05c162b8)
 
-Vote history page:
+User - vote history page:
 
 ![image](https://github.com/daviddserb/presidential-elections/assets/83017887/a1d0f57e-7a91-42e0-b07e-e1477a73d08a)
